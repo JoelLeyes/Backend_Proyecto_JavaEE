@@ -26,6 +26,8 @@ public class AuthServlet extends HttpServlet {
 			handleRegister(req, resp);
 		} else if ("/login".equals(path)) {
 			handleLogin(req, resp);
+		} else if ("/forgot-password".equals(path)) {
+			handleForgotPassword(req, resp);
 		} else {
 			resp.setStatus(404);
 		}
@@ -62,6 +64,26 @@ public class AuthServlet extends HttpServlet {
 			resp.getWriter().write(objectMapper.writeValueAsString(response));
 		} catch (Exception e) {
 			resp.setStatus(401);
+			Map<String, String> error = new HashMap<>();
+			error.put("message", e.getMessage());
+			resp.getWriter().write(objectMapper.writeValueAsString(error));
+		}
+	}
+
+	private void handleForgotPassword(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		try {
+			Map<String, String> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			String email = body.get("email");
+
+			if (email == null || email.isBlank()) {
+				throw new IllegalArgumentException("Email is required");
+			}
+
+			Map<String, Object> response = new HashMap<>();
+			response.put("message", "Password reset request received for " + email);
+			resp.getWriter().write(objectMapper.writeValueAsString(response));
+		} catch (Exception e) {
+			resp.setStatus(400);
 			Map<String, String> error = new HashMap<>();
 			error.put("message", e.getMessage());
 			resp.getWriter().write(objectMapper.writeValueAsString(error));
