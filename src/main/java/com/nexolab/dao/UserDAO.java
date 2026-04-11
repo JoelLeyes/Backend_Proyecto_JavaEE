@@ -18,7 +18,7 @@ public class UserDAO {
 
 	public Usuario findByEmail(String email) {
 		EntityManager em = emf.createEntityManager();
-		User user = em.createQuery("SELECT u FROM Usuario u WHERE u.email = :email", Usuario.class)
+		Usuario user = em.createQuery("SELECT u FROM Usuario u WHERE u.email = :email", Usuario.class)
 				.setParameter("email", email)
 				.getResultStream()
 				.findFirst()
@@ -29,7 +29,7 @@ public class UserDAO {
 
 	public Usuario findById(Long id) {
 		EntityManager em = emf.createEntityManager();
-		User user = em.find(User.class, id);
+		Usuario user = em.find(Usuario.class, id);
 		em.close();
 		return user;
 	}
