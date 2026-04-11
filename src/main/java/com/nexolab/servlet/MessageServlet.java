@@ -1,9 +1,9 @@
 package com.nexolab.servlet;
 
 import com.nexolab.service.AuthService;
-import com.nexolab.service.ConversationService;
+import com.nexolab.service.ChatService;
 import com.nexolab.service.MessageService;
-import com.nexolab.model.Conversacion;
+import com.nexolab.model.Chat;
 import com.nexolab.model.Usuario;
 import com.nexolab.model.Mensaje;
 import com.fasterxml.jackson.databind.ObjectMapper;
