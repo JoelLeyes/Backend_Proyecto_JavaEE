@@ -17,5 +17,4 @@
         <url-pattern>/*</url-pattern>
     </filter-mapping>
 
-</web-app></content>
-<parameter name="filePath">d:\2026\Backend_Proyecto_JavaEE\src\main\webapp\WEB-INF\web.xml
+</web-app>
