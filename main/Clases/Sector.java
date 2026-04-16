@@ -1,7 +1,0 @@
-public enum Sector {
-	SIN_ASIGNAR,
-	SISTEMAS,
-	RRHH,
-	FINANZAS,
-	OPERACIONES
-}
