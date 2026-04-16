@@ -7,7 +7,6 @@ import com.nexolab.model.Chat;
 import com.nexolab.model.TipoChat;
 import com.nexolab.model.Usuario;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -21,7 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@WebServlet("/api/chats")
+@WebServlet("/chats")
 public class ChatServlet extends HttpServlet {
 	private ChatService chatService = new ChatService();
 	private AuthService authService = new AuthService();
@@ -73,9 +72,7 @@ public class ChatServlet extends HttpServlet {
 		}
 
 		try {
-			Map<String, Object> body = objectMapper.readValue(req.getInputStream(),
-					new TypeReference<Map<String, Object>>() {
-					});
+			Map<String, Object> body = objectMapper.readValue(req.getInputStream(), Map.class);
 			String name = (String) body.get("name");
 			String typeStr = (String) body.get("type");
 			TipoChat type = TipoChat.valueOf(typeStr.toUpperCase());
@@ -84,19 +81,11 @@ public class ChatServlet extends HttpServlet {
 			participantes.add(usuario); // Agregar creador
 
 			// Para chats privados, agregar otro usuario si se especifica
-			if (type == TipoChat.PRIVATE) {
-				if (!body.containsKey("otherUserEmail") || ((String) body.get("otherUserEmail")).trim().isEmpty()) {
-					throw new Exception("Para chats privados, debe especificar el email del otro usuario");
-				}
-				String otherUserEmail = ((String) body.get("otherUserEmail")).trim();
-				if (otherUserEmail.equalsIgnoreCase(usuario.getEmail())) {
-					throw new Exception("No puede crear un chat privado consigo mismo");
-				}
-				Usuario otherUser = userDAO.findByEmail(otherUserEmail);
+			if (type == TipoChat.PRIVATE && body.containsKey("otherUserId")) {
+				Long otherUserId = Long.valueOf(body.get("otherUserId").toString());
+				Usuario otherUser = userDAO.findById(otherUserId);
 				if (otherUser != null) {
 					participantes.add(otherUser);
-				} else {
-					throw new Exception("Usuario no encontrado: " + otherUserEmail);
 				}
 			}
 
