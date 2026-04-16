@@ -7,6 +7,7 @@ import com.nexolab.model.Chat;
 import com.nexolab.model.Usuario;
 import com.nexolab.model.Mensaje;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -20,7 +21,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.stream.Collectors;
 
-@WebServlet("/chats/*/messages")
+@WebServlet("/api/chats/*/messages")
 public class MessageServlet extends HttpServlet {
 	private MessageService messageService = new MessageService();
 	private ChatService chatService = new ChatService();
@@ -91,7 +92,9 @@ public class MessageServlet extends HttpServlet {
 			return;
 		}
 
-		Map<String, String> body = objectMapper.readValue(req.getInputStream(), Map.class);
+		Map<String, String> body = objectMapper.readValue(req.getInputStream(),
+				new TypeReference<Map<String, String>>() {
+				});
 		messageService.enviarMensaje(chat, usuario, body.get("content"), body.get("type"));
 
 		resp.setStatus(201);

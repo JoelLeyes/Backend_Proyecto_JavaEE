@@ -1,62 +1,55 @@
 package com.nexolab.dao;
 
-import com.nexolab.model.Usuario;
+import com.nexolab.model.Sector;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
 import java.util.List;
 
-public class UserDAO {
+public class SectorDAO {
 	private static final EntityManagerFactory emf = Persistence.createEntityManagerFactory("NexoLabPU");
 
-	public void save(Usuario user) {
+	public void save(Sector sector) {
 		EntityManager em = emf.createEntityManager();
 		em.getTransaction().begin();
-		em.persist(user);
+		em.persist(sector);
 		em.getTransaction().commit();
 		em.close();
 	}
 
-	public Usuario findByEmail(String email) {
+	public Sector findByName(String name) {
 		EntityManager em = emf.createEntityManager();
-		Usuario user = em.createQuery("SELECT u FROM Usuario u WHERE u.email = :email", Usuario.class)
-				.setParameter("email", email)
+		Sector sector = em.createQuery("SELECT s FROM Sector s WHERE s.name = :name", Sector.class)
+				.setParameter("name", name)
 				.getResultStream()
 				.findFirst()
 				.orElse(null);
 		em.close();
-		return user;
+		return sector;
 	}
 
-	public Usuario findById(Long id) {
+	public List<Sector> findAll() {
 		EntityManager em = emf.createEntityManager();
-		Usuario user = em.find(Usuario.class, id);
-		em.close();
-		return user;
-	}
-
-	public List<Usuario> findAll() {
-		EntityManager em = emf.createEntityManager();
-		List<Usuario> users = em.createQuery("SELECT u FROM Usuario u ORDER BY u.name", Usuario.class)
+		List<Sector> sectors = em.createQuery("SELECT s FROM Sector s ORDER BY s.name", Sector.class)
 				.getResultList();
 		em.close();
-		return users;
+		return sectors;
 	}
 
-	public void update(Usuario user) {
+	public void update(Sector sector) {
 		EntityManager em = emf.createEntityManager();
 		em.getTransaction().begin();
-		em.merge(user);
+		em.merge(sector);
 		em.getTransaction().commit();
 		em.close();
 	}
 
-	public void delete(Long id) {
+	public void delete(String name) {
 		EntityManager em = emf.createEntityManager();
 		em.getTransaction().begin();
-		Usuario user = em.find(Usuario.class, id);
-		if (user != null) {
-			em.remove(user);
+		Sector sector = em.find(Sector.class, name);
+		if (sector != null) {
+			em.remove(sector);
 		}
 		em.getTransaction().commit();
 		em.close();

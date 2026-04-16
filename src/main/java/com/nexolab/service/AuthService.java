@@ -1,7 +1,6 @@
 package com.nexolab.service;
 
 import com.nexolab.dao.UserDAO;
-import com.nexolab.model.Sector;
 import com.nexolab.model.Usuario;
 import com.nexolab.util.JwtUtil;
 import at.favre.lib.crypto.bcrypt.BCrypt;
@@ -13,11 +12,24 @@ public class AuthService {
 		if (userDAO.findByEmail(email) != null) {
 			throw new Exception("Email already exists");
 		}
+
+		// Validar contraseña
+		if (password.length() < 8) {
+			throw new Exception("La contraseña debe tener al menos 8 caracteres");
+		}
+		if (password.matches("^[a-zA-Z]+$")) {
+			throw new Exception(
+					"La contraseña no puede contener solo letras. Debe incluir números o caracteres especiales");
+		}
+		if (password.matches("^[0-9]+$")) {
+			throw new Exception(
+					"La contraseña no puede contener solo números. Debe incluir letras o caracteres especiales");
+		}
+
 		Usuario user = new Usuario();
 		user.setName(name);
 		user.setEmail(email);
 		user.setPasswordHash(BCrypt.withDefaults().hashToString(12, password.toCharArray()));
-		user.setSector(Sector.SIN_SECTOR);
 		userDAO.save(user);
 		return user;
 	}
