@@ -2,6 +2,7 @@ package com.nexolab.dao;
 
 import com.nexolab.model.Mensaje;
 import com.nexolab.model.Chat;
+import com.nexolab.model.Usuario;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
@@ -29,5 +30,34 @@ public class MessageDAO {
 				.getResultList();
 		em.close();
 		return messages;
+	}
+
+	/**
+	 * Obtener últimos N mensajes de un usuario
+	 */
+	public List<Mensaje> findByUserLimit(Usuario usuario, int limit) {
+		EntityManager em = emf.createEntityManager();
+		List<Mensaje> mensajes = em.createQuery(
+				"SELECT m FROM Mensaje m WHERE m.sender = :usuario ORDER BY m.timestamp DESC",
+				Mensaje.class)
+				.setParameter("usuario", usuario)
+				.setMaxResults(limit)
+				.getResultList();
+		em.close();
+		return mensajes;
+	}
+
+	/**
+	 * Contar total de mensajes de un usuario
+	 */
+	public long countByUser(Usuario usuario) {
+		EntityManager em = emf.createEntityManager();
+		Long count = em.createQuery(
+				"SELECT COUNT(m) FROM Mensaje m WHERE m.sender = :usuario",
+				Long.class)
+				.setParameter("usuario", usuario)
+				.getSingleResult();
+		em.close();
+		return count;
 	}
 }

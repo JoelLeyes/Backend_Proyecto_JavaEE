@@ -34,6 +34,14 @@ public class ChatDAO {
 		em.close();
 		return chats;
 	}
+
+	public List<Chat> findAll() {
+		EntityManager em = emf.createEntityManager();
+		List<Chat> chats = em.createQuery("SELECT c FROM Chat c", Chat.class)
+				.getResultList();
+		em.close();
+		return chats;
+	}
 }
 
-//HOLA
+// HOLA

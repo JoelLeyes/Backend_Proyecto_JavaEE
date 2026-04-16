@@ -13,8 +13,9 @@ public class Usuario {
 	@Column(nullable = false)
 	private String name;
 
-	@Enumerated(EnumType.STRING)
-	private Sector sector = Sector.SIN_SECTOR;
+	@ManyToOne
+	@JoinColumn(name = "sector_name")
+	private Sector sector;
 
 	@Column(nullable = false, unique = true)
 	private String email;

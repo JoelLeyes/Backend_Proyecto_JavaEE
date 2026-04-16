@@ -3,6 +3,7 @@ package com.nexolab.servlet;
 import com.nexolab.service.AuthService;
 import com.nexolab.model.Usuario;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -12,7 +13,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-@WebServlet("/auth/*")
+@WebServlet("/api/auth/*")
 public class AuthServlet extends HttpServlet {
 	private AuthService authService = new AuthService();
 	private ObjectMapper objectMapper = new ObjectMapper();
@@ -35,7 +36,9 @@ public class AuthServlet extends HttpServlet {
 
 	private void handleRegister(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		try {
-			Map<String, String> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			Map<String, String> body = objectMapper.readValue(req.getInputStream(),
+					new TypeReference<Map<String, String>>() {
+					});
 			Usuario user = authService.register(body.get("name"), body.get("email"), body.get("password"));
 			Map<String, Object> response = new HashMap<>();
 			response.put("message", "User registered successfully");
@@ -50,7 +53,9 @@ public class AuthServlet extends HttpServlet {
 
 	private void handleLogin(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		try {
-			Map<String, String> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			Map<String, String> body = objectMapper.readValue(req.getInputStream(),
+					new TypeReference<Map<String, String>>() {
+					});
 			String token = authService.login(body.get("email"), body.get("password"));
 			Usuario user = authService.getUserFromToken(token);
 			Map<String, Object> response = new HashMap<>();
@@ -72,7 +77,9 @@ public class AuthServlet extends HttpServlet {
 
 	private void handleForgotPassword(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		try {
-			Map<String, String> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			Map<String, String> body = objectMapper.readValue(req.getInputStream(),
+					new TypeReference<Map<String, String>>() {
+					});
 			String email = body.get("email");
 
 			if (email == null || email.isBlank()) {
