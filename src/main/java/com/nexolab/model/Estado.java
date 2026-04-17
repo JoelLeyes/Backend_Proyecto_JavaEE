@@ -1,6 +1,6 @@
 package com.nexolab.model;
 
-//jpa aca?
+//jpa aca? att://Fran 2026
 public enum Estado {
     LEÍDO,
     ENVIADO,

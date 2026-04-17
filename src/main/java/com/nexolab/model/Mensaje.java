@@ -1,101 +1,64 @@
 package com.nexolab.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 @Entity
-@Table(name = "messages")
+@Table(name = "mensajes")
 public class Mensaje {
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long idMensaje;
 
-	@ManyToOne
-	@JoinColumn(name = "conversation_id", nullable = false)
-	private Chat conversacion;
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "fecha_enviado", nullable = false)
+    private Date fechaEnviado;
 
-	@ManyToOne
-	@JoinColumn(name = "sender_id", nullable = false)
-	private Usuario sender;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String contenido;
 
-	@Column(nullable = false)
-	private String content;
+    @OneToMany(mappedBy = "mensaje", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Adjunto> adjuntos = new ArrayList<>();
 
-	@Enumerated(EnumType.STRING)
-	private EstadoMensaje tipo = EstadoMensaje.TEXT;
+    @OneToMany(mappedBy = "mensaje", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<EstadoMensaje> estados = new ArrayList<>();
 
-	@Column(nullable = false)
-	private LocalDateTime timestamp = LocalDateTime.now();
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "chat_id", nullable = false)
+    private Chat chat;
 
-	private Boolean read = false;
+    public Mensaje() {}
 
-	@OneToMany(mappedBy = "mensaje", cascade = CascadeType.ALL, orphanRemoval = true)
-	private Set<Adjunto> adjuntos = new HashSet<>();
+    public Mensaje(Date fechaEnviado, String contenido, Chat chat) {
+        this.fechaEnviado = fechaEnviado;
+        this.contenido = contenido;
+        this.chat = chat;
+    }
 
-	// Getters and setters
-	public Long getId() {
-		return id;
-	}
+    public void setIdMensaje(Long idMensaje) { this.idMensaje = idMensaje; }
+    public void setFechaEnviado(Date fechaEnviado) { this.fechaEnviado = fechaEnviado; }
+    public void setContenido(String contenido) { this.contenido = contenido; }
+    public void setChat(Chat chat) { this.chat = chat; }
+    public void setAdjuntos(List<Adjunto> adjuntos) {
+        this.adjuntos = (adjuntos == null) ? new ArrayList<>() : adjuntos;
+    }
+    public void setEstados(List<EstadoMensaje> estados) {
+        this.estados = (estados == null) ? new ArrayList<>() : estados;
+    }
+    public void agregarAdjunto(Adjunto adjunto) {
+        if (adjunto != null) {
+            this.adjuntos.add(adjunto);
+        }
+    }
 
-	public void setId(Long id) {
-		this.id = id;
-	}
+    public Long getIdMensaje() { return idMensaje; }
+    public Date getFechaEnviado() { return fechaEnviado; }
+    public String getContenido() { return contenido; }
+    public Chat getChat() { return chat; }
+    public List<Adjunto> getAdjuntos() { return adjuntos; }
+    public List<EstadoMensaje> getEstados() { return estados; }
 
-	public Chat getConversacion() {
-		return conversacion;
-	}
-
-	public void setConversacion(Chat conversacion) {
-		this.conversacion = conversacion;
-	}
-
-	public Usuario getSender() {
-		return sender;
-	}
-
-	public void setSender(Usuario sender) {
-		this.sender = sender;
-	}
-
-	public String getContent() {
-		return content;
-	}
-
-	public void setContent(String content) {
-		this.content = content;
-	}
-
-	public EstadoMensaje getTipo() {
-		return tipo;
-	}
-
-	public void setTipo(EstadoMensaje tipo) {
-		this.tipo = tipo;
-	}
-
-	public LocalDateTime getTimestamp() {
-		return timestamp;
-	}
-
-	public void setTimestamp(LocalDateTime timestamp) {
-		this.timestamp = timestamp;
-	}
-
-	public Boolean getRead() {
-		return read;
-	}
-
-	public void setRead(Boolean read) {
-		this.read = read;
-	}
-
-	public Set<Adjunto> getAdjuntos() {
-		return adjuntos;
-	}
-
-	public void setAdjuntos(Set<Adjunto> adjuntos) {
-		this.adjuntos = adjuntos;
-	}
 }

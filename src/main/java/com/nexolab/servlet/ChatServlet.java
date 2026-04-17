@@ -39,12 +39,12 @@ public class ChatServlet extends HttpServlet {
 		List<Chat> chats = chatService.obtenerChatsDelUsuario(usuario);
 		List<Map<String, Object>> chatsList = chats.stream().map(c -> {
 			Map<String, Object> map = new HashMap<>();
-			map.put("id", c.getId());
-			map.put("name", c.getName());
-			map.put("type", c.getType().toString());
-			map.put("lastMessage", c.getLastMessage());
-			map.put("lastMessageAt", c.getLastMessageAt());
-			map.put("unreadCount", c.getUnreadCount());
+			map.put("idChat", c.getIdChat());
+			map.put("nombreChat", c.getNombreChat());
+			map.put("tipoChat", c.getTipoChat() == null ? null : c.getTipoChat().toString());
+			map.put("ultimoMensaje", c.getUltimoMensaje());
+			map.put("horaUltimoMensaje", c.getHoraUltimoMensaje() == null ? null : c.getHoraUltimoMensaje().toString());
+			map.put("mensajesSinLeer", c.getMensajesSinLeer());
 			return map;
 		}).collect(Collectors.toList());
 

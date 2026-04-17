@@ -1,5 +1,6 @@
 package com.nexolab.model;
 
 public enum TipoChat {
-	PRIVATE, GROUP
+    PRIVADO,
+    GRUPAL
 }

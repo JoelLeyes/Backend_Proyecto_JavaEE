@@ -1,11 +1,13 @@
 package com.nexolab.dao;
 
-import com.nexolab.model.Mensaje;
 import com.nexolab.model.Chat;
+import com.nexolab.model.Mensaje;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
-import java.time.LocalDateTime;
+
+import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 
 public class MessageDAO {
@@ -19,15 +21,21 @@ public class MessageDAO {
 		em.close();
 	}
 
-	public List<Mensaje> findByConversationSince(Chat chat, LocalDateTime since) {
+	public List<Mensaje> findByChatSince(Chat chat, Date since) {
 		EntityManager em = emf.createEntityManager();
 		List<Mensaje> messages = em.createQuery(
-				"SELECT m FROM Mensaje m WHERE m.conversacion = :chat AND m.timestamp > :since ORDER BY m.timestamp",
+				"SELECT DISTINCT m FROM Mensaje m " +
+						"LEFT JOIN FETCH m.adjuntos " +
+						"LEFT JOIN FETCH m.estados e " +
+						"LEFT JOIN FETCH e.usuario " +
+						"WHERE m.chat = :chat AND m.fechaEnviado > :since",
 				Mensaje.class)
 				.setParameter("chat", chat)
 				.setParameter("since", since)
 				.getResultList();
 		em.close();
+
+		messages.sort(Comparator.comparing(Mensaje::getFechaEnviado));
 		return messages;
 	}
 }

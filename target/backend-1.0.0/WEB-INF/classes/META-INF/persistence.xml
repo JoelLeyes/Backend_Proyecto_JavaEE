@@ -11,6 +11,7 @@
         <class>com.nexolab.model.Chat</class>
         <class>com.nexolab.model.Mensaje</class>
         <class>com.nexolab.model.Adjunto</class>
+        <class>com.nexolab.model.EstadoMensaje</class>
         <class>com.nexolab.model.Participa</class>
 
         <properties>

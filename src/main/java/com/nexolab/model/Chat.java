@@ -1,109 +1,82 @@
 package com.nexolab.model;
 
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 @Entity
-@Table(name = "conversations")
+@Table(name = "chats")
 public class Chat {
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long idChat;
 
-	@Column(nullable = false)
-	private String name;
+    @Column(nullable = false)
+    private String nombreChat;
 
-	@Enumerated(EnumType.STRING)
-	private TipoChat type;
+    @Enumerated(EnumType.STRING)
+    private TipoChat tipoChat;
 
-	private String lastMessage;
-	private LocalDateTime lastMessageAt;
-	private Integer unreadCount = 0;
+    // no hay que hacer nada con jpa?
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "fecha_creacion", nullable = false)
+    private Date fechaCreacion;
 
-	@ManyToMany
-	@JoinTable(name = "conversation_users", joinColumns = @JoinColumn(name = "conversation_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
-	private Set<Usuario> participantes;
+    @Transient
+    private String ultimoMensaje;
 
-	@OneToMany(mappedBy = "chat", cascade = CascadeType.ALL, orphanRemoval = true)
-	private Set<Participa> participaciones = new HashSet<>();
+    @Transient
+    private LocalDateTime horaUltimoMensaje;
 
-	@OneToMany(mappedBy = "conversacion", cascade = CascadeType.ALL, orphanRemoval = true)
-	private List<Mensaje> mensajes = new ArrayList<>();
+    @Transient
+    private Integer mensajesSinLeer = 0;
 
-	// Getters and setters
-	public Long getId() {
-		return id;
-	}
+    @ManyToMany
+    @JoinTable(name = "chat_usuarios", joinColumns = @JoinColumn(name = "chat_id"), inverseJoinColumns = @JoinColumn(name = "usuario_id"))
+    private Set<Usuario> participantes;
 
-	public void setId(Long id) {
-		this.id = id;
-	}
+    @OneToMany(mappedBy = "chat", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Participa> participaciones = new HashSet<>();
 
-	public String getName() {
-		return name;
-	}
+    @OneToMany(mappedBy = "chat", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Mensaje> mensajes = new ArrayList<>();
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    public Chat() {}
+    public Chat(String nombreChat, TipoChat tipoChat, Date fechaCreacion) {
+        this.nombreChat = nombreChat;
+        this.tipoChat = tipoChat;
+        this.fechaCreacion = fechaCreacion;
+    }
 
-	public TipoChat getType() {
-		return type;
-	}
+    public void setIdChat(Long idChat) { this.idChat = idChat; }
+    public void setNombreChat(String nombreChat) { this.nombreChat = nombreChat; }
+    public void setTipoChat(TipoChat tipoChat) { this.tipoChat = tipoChat; }
+    public void setFechaCreacion(Date fechaCreacion) { this.fechaCreacion = fechaCreacion; }
+    public void setParticipaciones(Set<Participa> participaciones) {
+        this.participaciones = (participaciones == null) ? new HashSet<>() : participaciones;
+    }
+    public void setMensajes(List<Mensaje> mensajes) {
+        this.mensajes = (mensajes == null) ? new ArrayList<>() : mensajes;
+    }
+    public void setParticipantes(Set<Usuario> participantes) { this.participantes = participantes; }
+    public void setUltimoMensaje(String ultimoMensaje) { this.ultimoMensaje = ultimoMensaje; }
+    public void setHoraUltimoMensaje(LocalDateTime horaUltimoMensaje) { this.horaUltimoMensaje = horaUltimoMensaje; }
+    public void setMensajesSinLeer(Integer mensajesSinLeer) { this.mensajesSinLeer = mensajesSinLeer; }
 
-	public void setType(TipoChat type) {
-		this.type = type;
-	}
 
-	public String getLastMessage() {
-		return lastMessage;
-	}
-
-	public void setLastMessage(String lastMessage) {
-		this.lastMessage = lastMessage;
-	}
-
-	public LocalDateTime getLastMessageAt() {
-		return lastMessageAt;
-	}
-
-	public void setLastMessageAt(LocalDateTime lastMessageAt) {
-		this.lastMessageAt = lastMessageAt;
-	}
-
-	public Integer getUnreadCount() {
-		return unreadCount;
-	}
-
-	public void setUnreadCount(Integer unreadCount) {
-		this.unreadCount = unreadCount;
-	}
-
-	public Set<Usuario> getParticipantes() {
-		return participantes;
-	}
-
-	public void setParticipantes(Set<Usuario> participantes) {
-		this.participantes = participantes;
-	}
-
-	public Set<Participa> getParticipaciones() {
-		return participaciones;
-	}
-
-	public void setParticipaciones(Set<Participa> participaciones) {
-		this.participaciones = participaciones;
-	}
-
-	public List<Mensaje> getMensajes() {
-		return mensajes;
-	}
-
-	public void setMensajes(List<Mensaje> mensajes) {
-		this.mensajes = mensajes;
-	}
+    public Long getIdChat() { return idChat; }
+    public String getNombreChat() { return nombreChat; }
+    public TipoChat getTipoChat() { return tipoChat; }
+    public Date getFechaCreacion() { return fechaCreacion; }
+    public Set<Usuario> getParticipantes() { return participantes; }
+    public Set<Participa> getParticipaciones() { return participaciones; }
+    public List<Mensaje> getMensajes() { return mensajes; }
+    public String getUltimoMensaje() { return ultimoMensaje; }
+    public LocalDateTime getHoraUltimoMensaje() { return horaUltimoMensaje; }
+    public Integer getMensajesSinLeer() { return mensajesSinLeer; }
 }
