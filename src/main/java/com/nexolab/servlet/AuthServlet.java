@@ -36,7 +36,20 @@ public class AuthServlet extends HttpServlet {
 	private void handleRegister(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		try {
 			Map<String, String> body = objectMapper.readValue(req.getInputStream(), Map.class);
-			Usuario user = authService.register(body.get("name"), body.get("email"), body.get("password"));
+
+			String nombre = body.get("nombre");
+			String apellido = body.get("apellido");
+			String cargo = body.get("cargo");
+			String email = body.get("email");
+			String password = body.get("password");
+
+			// Compatibilidad con frontend viejo
+			if (nombre == null || nombre.isBlank()) {
+				nombre = body.get("name");
+			}
+
+			authService.register(nombre, apellido, email, password, cargo);
+
 			Map<String, Object> response = new HashMap<>();
 			response.put("message", "User registered successfully");
 			resp.getWriter().write(objectMapper.writeValueAsString(response));
@@ -53,14 +66,20 @@ public class AuthServlet extends HttpServlet {
 			Map<String, String> body = objectMapper.readValue(req.getInputStream(), Map.class);
 			String token = authService.login(body.get("email"), body.get("password"));
 			Usuario user = authService.getUserFromToken(token);
+
 			Map<String, Object> response = new HashMap<>();
 			response.put("token", token);
+
 			Map<String, Object> userMap = new HashMap<>();
-			userMap.put("id", user.getId());
-			userMap.put("name", user.getName());
+			userMap.put("idUsuario", user.getIdUsuario());
+			userMap.put("nombre", user.getNombre());
+			userMap.put("apellido", user.getApellido());
 			userMap.put("email", user.getEmail());
-			userMap.put("role", user.getRole().toString());
+			userMap.put("cargo", user.getCargo());
+			userMap.put("sector", user.getSector() == null ? null : user.getSector().toString());
+			userMap.put("tipoEstado", user.getTipoEstado() == null ? null : user.getTipoEstado().toString());
 			response.put("user", userMap);
+
 			resp.getWriter().write(objectMapper.writeValueAsString(response));
 		} catch (Exception e) {
 			resp.setStatus(401);

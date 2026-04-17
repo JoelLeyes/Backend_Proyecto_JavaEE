@@ -1,7 +1,9 @@
 package com.nexolab.model;
 
 public enum Sector {
-	SIN_SECTOR,
+	SIN_ASIGNAR,
+	SISTEMAS,
 	RRHH,
-	FINANZAS
+	FINANZAS,
+	OPERACIONES
 }

@@ -20,16 +20,25 @@ public class ChatDAO {
 
 	public Chat findById(Long id) {
 		EntityManager em = emf.createEntityManager();
-		Chat chat = em.find(Chat.class, id);
+		Chat chat = em.createQuery(
+				"SELECT c FROM Chat c LEFT JOIN FETCH c.participantes WHERE c.idChat = :id",
+				Chat.class)
+				.setParameter("id", id)
+				.getResultStream()
+				.findFirst()
+				.orElse(null);
 		em.close();
 		return chat;
 	}
 
 	public List<Chat> findByUsuario(Usuario usuario) {
 		EntityManager em = emf.createEntityManager();
+		Long userId = usuario == null ? null : usuario.getIdUsuario();
 		List<Chat> chats = em.createQuery(
-				"SELECT c FROM Chat c JOIN c.participantes p WHERE p = :usuario", Chat.class)
-				.setParameter("usuario", usuario)
+				"SELECT DISTINCT c FROM Chat c JOIN c.participantes p LEFT JOIN FETCH c.mensajes " +
+						"WHERE p.idUsuario = :userId",
+				Chat.class)
+				.setParameter("userId", userId)
 				.getResultList();
 		em.close();
 		return chats;
