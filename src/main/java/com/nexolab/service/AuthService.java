@@ -19,10 +19,11 @@ public class AuthService {
 		if (email == null || email.isBlank()) {
 			throw new IllegalArgumentException("Email is required");
 		}
+		email = email.trim();
 		if (password == null || password.isBlank()) {
 			throw new IllegalArgumentException("Password is required");
 		}
-		if (userDAO.findByEmail(email) != null) {
+		if (userDAO.findByEmail(email) != null || userDAO.findLegacyByEmail(email) != null) {
 			throw new Exception("Email already exists");
 		}
 
@@ -61,11 +62,79 @@ public class AuthService {
 	}
 
 	public String login(String email, String password) throws Exception {
-		Usuario user = userDAO.findByEmail(email);
-		if (user == null || !BCrypt.verifyer().verify(password.toCharArray(), user.getPasswordHash()).verified) {
+		if (email == null || email.isBlank() || password == null) {
 			throw new Exception("Invalid credentials");
 		}
-		return JwtUtil.generateToken(user.getIdUsuario());
+		email = email.trim();
+
+		Usuario user = userDAO.findByEmail(email);
+		if (user != null) {
+			if (!BCrypt.verifyer().verify(password.toCharArray(), user.getPasswordHash()).verified) {
+				throw new Exception("Invalid credentials");
+			}
+			return JwtUtil.generateToken(user.getIdUsuario());
+		}
+
+		// Compatibilidad: cuentas viejas guardadas en la tabla legacy `users`.
+		UserDAO.LegacyUser legacy = userDAO.findLegacyByEmail(email);
+		if (legacy == null || legacy.getPasswordHash() == null) {
+			throw new Exception("Invalid credentials");
+		}
+		if (!BCrypt.verifyer().verify(password.toCharArray(), legacy.getPasswordHash()).verified) {
+			throw new Exception("Invalid credentials");
+		}
+
+		// Migración automática a la tabla nueva `usuarios` para que el resto del sistema funcione.
+		Usuario migrated = migrateLegacyUser(legacy);
+		return JwtUtil.generateToken(migrated.getIdUsuario());
+	}
+
+	private Usuario migrateLegacyUser(UserDAO.LegacyUser legacy) {
+		// Si otro request ya migró, devolvemos el existente.
+		Usuario existing = userDAO.findByEmail(legacy.getEmail());
+		if (existing != null) {
+			return existing;
+		}
+
+		String fullName = legacy.getName() == null ? "" : legacy.getName().trim();
+		String nombre = fullName;
+		String apellido = "";
+		if (!fullName.isBlank()) {
+			int space = fullName.indexOf(' ');
+			if (space > 0) {
+				nombre = fullName.substring(0, space).trim();
+				apellido = fullName.substring(space + 1).trim();
+			}
+		}
+
+		Usuario u = new Usuario();
+		u.setNombre(nombre.isBlank() ? "" : nombre);
+		u.setApellido(apellido);
+		u.setEmail(legacy.getEmail());
+		u.setPasswordHash(legacy.getPasswordHash());
+		u.setPasswordSalt("BCRYPT");
+		u.setCargo(legacy.getRole() == null ? "" : legacy.getRole());
+		u.setFotoPerfilUrl(null);
+
+		Sector sector = Sector.SIN_ASIGNAR;
+		String legacySector = legacy.getSector();
+		if (legacySector != null && !legacySector.isBlank()) {
+			String normalized = legacySector.trim();
+			if ("SIN_SECTOR".equalsIgnoreCase(normalized)) {
+				normalized = "SIN_ASIGNAR";
+			}
+			try {
+				sector = Sector.valueOf(normalized.toUpperCase());
+			} catch (Exception ignored) {
+				sector = Sector.SIN_ASIGNAR;
+			}
+		}
+		u.setSector(sector);
+		u.setTipoEstado(TipoEstado.DESCONECTADO);
+		u.setFechaCreacion(legacy.getCreatedAt() == null ? new Date() : legacy.getCreatedAt());
+
+		userDAO.save(u);
+		return u;
 	}
 
 	public Usuario getUserFromToken(String token) {
