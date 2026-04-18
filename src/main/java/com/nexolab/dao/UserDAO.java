@@ -56,12 +56,19 @@ public class UserDAO {
 	public LegacyUser findLegacyByEmail(String email) {
 		EntityManager em = emf.createEntityManager();
 		try {
-			Object[] row = (Object[]) em.createNativeQuery(
-					"SELECT id, name, email, passwordhash, role, sector, createdat FROM users WHERE email = ?1")
-					.setParameter(1, email)
-					.getResultStream()
-					.findFirst()
-					.orElse(null);
+			Object[] row;
+			try {
+				row = (Object[]) em.createNativeQuery(
+						"SELECT id, name, email, passwordhash, role, sector, createdat FROM users WHERE email = ?1")
+						.setParameter(1, email)
+						.getResultStream()
+						.findFirst()
+						.orElse(null);
+			} catch (RuntimeException ex) {
+				// Si la tabla legacy ya no existe (o hay un problema de esquema),
+				// tratamos como "no encontrado" para no romper el login.
+				return null;
+			}
 			if (row == null) {
 				return null;
 			}
