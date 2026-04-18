@@ -42,6 +42,10 @@ public class Usuario {
     @Column(name = "tipo_estado", nullable = false)
     private TipoEstado tipoEstado =  TipoEstado.DESCONECTADO;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rol_sistema", nullable = false)
+    private RolSistema rolSistema = RolSistema.USUARIO;
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "fecha_creacion", nullable = false)
     private Date fechaCreacion;
@@ -81,6 +85,8 @@ public class Usuario {
     public void setFechaCreacion(Date fechaCreacion) {
         this.fechaCreacion = (fechaCreacion == null) ? new Date() : fechaCreacion;
     }
+    public void setRolSistema(RolSistema rolSistema) { this.rolSistema = (rolSistema == null) ? RolSistema.USUARIO : rolSistema; }
+
     public void setChats(Set<Chat> chats) {
         this.chats = (chats == null) ? new HashSet<>() : chats;
     }
@@ -108,6 +114,7 @@ public class Usuario {
     public Sector getSector() { return sector; }
     public TipoEstado getTipoEstado() { return tipoEstado; }
     public Date getFechaCreacion() { return fechaCreacion; }
+    public RolSistema getRolSistema() { return rolSistema; }
     public Set<Chat> getChats() { return chats; }
     public Set<Participa> getParticipaciones() { return participaciones; }
 
