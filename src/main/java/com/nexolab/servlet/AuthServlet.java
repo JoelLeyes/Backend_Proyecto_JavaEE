@@ -78,6 +78,7 @@ public class AuthServlet extends HttpServlet {
 			userMap.put("cargo", user.getCargo());
 			userMap.put("sector", user.getSector() == null ? null : user.getSector().toString());
 			userMap.put("tipoEstado", user.getTipoEstado() == null ? null : user.getTipoEstado().toString());
+			userMap.put("rolSistema", user.getRolSistema() == null ? "USUARIO" : user.getRolSistema().toString());
 			response.put("user", userMap);
 
 			resp.getWriter().write(objectMapper.writeValueAsString(response));

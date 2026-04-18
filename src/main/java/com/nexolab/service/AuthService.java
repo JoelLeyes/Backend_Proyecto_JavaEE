@@ -23,7 +23,8 @@ public class AuthService {
 		if (password == null || password.isBlank()) {
 			throw new IllegalArgumentException("Password is required");
 		}
-		if (userDAO.findByEmail(email) != null || userDAO.findLegacyByEmail(email) != null) {
+		validatePasswordStrength(password);
+		if (userDAO.findByEmail(email) != null) {
 			throw new Exception("Email already exists");
 		}
 
@@ -59,6 +60,17 @@ public class AuthService {
 			}
 		}
 		return register(nombre, apellido, email, password, "");
+	}
+
+	private void validatePasswordStrength(String password) {
+		if (password.length() < 8)
+			throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres");
+		if (password.chars().noneMatch(Character::isUpperCase))
+			throw new IllegalArgumentException("La contraseña debe contener al menos una letra mayúscula");
+		if (password.chars().noneMatch(Character::isDigit))
+			throw new IllegalArgumentException("La contraseña debe contener al menos un número");
+		if (password.chars().allMatch(c -> Character.isLetterOrDigit(c)))
+			throw new IllegalArgumentException("La contraseña debe contener al menos un carácter especial");
 	}
 
 	public String login(String email, String password) throws Exception {
