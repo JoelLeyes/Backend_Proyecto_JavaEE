@@ -2,7 +2,9 @@ package com.nexolab.servlet;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexolab.dao.MessageDAO;
 import com.nexolab.dao.UserDAO;
+import com.nexolab.model.Mensaje;
 import com.nexolab.model.RolSistema;
 import com.nexolab.model.Sector;
 import com.nexolab.model.Usuario;
@@ -26,6 +28,7 @@ public class AdminServlet extends HttpServlet {
 
     private final AuthService authService = new AuthService();
     private final UserDAO userDAO = new UserDAO();
+    private final MessageDAO messageDAO = new MessageDAO();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -40,6 +43,12 @@ public class AdminServlet extends HttpServlet {
             handleListUsuarios(resp);
         } else if ("/stats".equals(path)) {
             handleStats(resp);
+        } else if (path != null && path.matches("/usuarios/\\d+/mensajes")) {
+            Long userId = Long.parseLong(path.split("/")[2]);
+            int cantidad = 10;
+            try { cantidad = Integer.parseInt(req.getParameter("cantidad")); } catch (Exception ignored) {}
+            cantidad = Math.min(Math.max(cantidad, 1), 100);
+            handleVerMensajes(resp, userId, cantidad);
         } else {
             resp.setStatus(404);
         }
@@ -127,6 +136,29 @@ public class AdminServlet extends HttpServlet {
             throw new IllegalArgumentException("La contraseña debe contener al menos un número");
         if (password.chars().allMatch(Character::isLetterOrDigit))
             throw new IllegalArgumentException("La contraseña debe contener al menos un carácter especial");
+    }
+
+    private void handleVerMensajes(HttpServletResponse resp, Long userId, int cantidad) throws IOException {
+        Usuario usuario = userDAO.findById(userId);
+        if (usuario == null) {
+            resp.setStatus(404);
+            resp.getWriter().write("{\"message\":\"Usuario no encontrado\"}");
+            return;
+        }
+
+        List<Mensaje> mensajes = messageDAO.findLastNByUsuario(userId, cantidad);
+
+        List<Map<String, Object>> result = mensajes.stream().map(m -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("idMensaje", m.getIdMensaje());
+            map.put("contenido", m.getContenido());
+            map.put("fechaEnviado", m.getFechaEnviado());
+            map.put("nombreChat", m.getChat() == null ? null : m.getChat().getNombreChat());
+            map.put("tipoChat", m.getChat() == null ? null : m.getChat().getTipoChat().toString());
+            return map;
+        }).collect(Collectors.toList());
+
+        resp.getWriter().write(objectMapper.writeValueAsString(result));
     }
 
     private void handleUpdateUsuario(HttpServletRequest req, HttpServletResponse resp, Long userId) throws IOException {
