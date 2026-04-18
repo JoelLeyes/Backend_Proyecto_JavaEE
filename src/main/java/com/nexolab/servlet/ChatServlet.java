@@ -1,10 +1,12 @@
 package com.nexolab.servlet;
 
-import com.nexolab.service.AuthService;
-import com.nexolab.service.ChatService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexolab.dao.UserDAO;
 import com.nexolab.model.Chat;
 import com.nexolab.model.Usuario;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexolab.service.AuthService;
+import com.nexolab.service.ChatService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -18,9 +20,10 @@ import java.util.stream.Collectors;
 
 @WebServlet("/chats")
 public class ChatServlet extends HttpServlet {
-	private ChatService chatService = new ChatService();
-	private AuthService authService = new AuthService();
-	private ObjectMapper objectMapper = new ObjectMapper();
+	private final ChatService chatService = new ChatService();
+	private final AuthService authService = new AuthService();
+	private final UserDAO userDAO = new UserDAO();
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -50,5 +53,47 @@ public class ChatServlet extends HttpServlet {
 
 		resp.setContentType("application/json");
 		resp.getWriter().write(objectMapper.writeValueAsString(chatsList));
+	}
+
+	@Override
+	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		resp.setContentType("application/json");
+		String token = req.getHeader("Authorization");
+		if (token == null || !token.startsWith("Bearer ")) { resp.setStatus(401); return; }
+		Usuario creador = authService.getUserFromToken(token.substring(7));
+		if (creador == null) { resp.setStatus(401); return; }
+
+		Map<String, Object> body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, Object>>() {});
+		Object otroIdObj = body.get("otroUsuarioId");
+		if (otroIdObj == null) {
+			resp.setStatus(400);
+			resp.getWriter().write("{\"message\":\"otroUsuarioId requerido\"}");
+			return;
+		}
+
+		Long otroId;
+		try {
+			otroId = Long.parseLong(otroIdObj.toString());
+		} catch (NumberFormatException e) {
+			resp.setStatus(400);
+			resp.getWriter().write("{\"message\":\"otroUsuarioId inválido\"}");
+			return;
+		}
+
+		Usuario otro = userDAO.findById(otroId);
+		if (otro == null) {
+			resp.setStatus(404);
+			resp.getWriter().write("{\"message\":\"Usuario no encontrado\"}");
+			return;
+		}
+
+		Chat chat = chatService.crearChatPrivado(creador, otro);
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("idChat", chat.getIdChat());
+		response.put("nombreChat", chat.getNombreChat());
+		response.put("tipoChat", chat.getTipoChat() == null ? null : chat.getTipoChat().toString());
+		resp.setStatus(201);
+		resp.getWriter().write(objectMapper.writeValueAsString(response));
 	}
 }

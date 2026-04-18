@@ -100,6 +100,22 @@ public class UserDAO {
 		return user;
 	}
 
+	public java.util.List<Usuario> findByQuery(String q, Long excludeId) {
+		EntityManager em = emf.createEntityManager();
+		String pattern = "%" + q.toLowerCase() + "%";
+		java.util.List<Usuario> users = em.createQuery(
+				"SELECT u FROM Usuario u WHERE u.rolSistema = com.nexolab.model.RolSistema.USUARIO " +
+				"AND u.idUsuario <> :excludeId " +
+				"AND (LOWER(u.nombre) LIKE :q OR LOWER(u.apellido) LIKE :q OR LOWER(u.email) LIKE :q)",
+				Usuario.class)
+				.setParameter("q", pattern)
+				.setParameter("excludeId", excludeId)
+				.setMaxResults(20)
+				.getResultList();
+		em.close();
+		return users;
+	}
+
 	public java.util.List<Usuario> findAll() {
 		EntityManager em = emf.createEntityManager();
 		java.util.List<Usuario> users = em.createQuery("SELECT u FROM Usuario u ORDER BY u.fechaCreacion DESC", Usuario.class)
