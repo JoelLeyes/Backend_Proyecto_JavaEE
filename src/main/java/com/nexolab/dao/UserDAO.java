@@ -92,4 +92,30 @@ public class UserDAO {
 		em.close();
 		return user;
 	}
+
+	public java.util.List<Usuario> findAll() {
+		EntityManager em = emf.createEntityManager();
+		java.util.List<Usuario> users = em.createQuery("SELECT u FROM Usuario u ORDER BY u.fechaCreacion DESC", Usuario.class)
+				.getResultList();
+		em.close();
+		return users;
+	}
+
+	public Usuario findAdminSistema() {
+		EntityManager em = emf.createEntityManager();
+		Usuario admin = em.createQuery("SELECT u FROM Usuario u WHERE u.rolSistema = com.nexolab.model.RolSistema.ADMIN_SISTEMA", Usuario.class)
+				.getResultStream()
+				.findFirst()
+				.orElse(null);
+		em.close();
+		return admin;
+	}
+
+	public void update(Usuario user) {
+		EntityManager em = emf.createEntityManager();
+		em.getTransaction().begin();
+		em.merge(user);
+		em.getTransaction().commit();
+		em.close();
+	}
 }
