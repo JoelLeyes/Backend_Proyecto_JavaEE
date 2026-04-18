@@ -5,8 +5,29 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
 
+import java.sql.Timestamp;
+import java.util.Date;
+
 public class UserDAO {
 	private static final EntityManagerFactory emf = Persistence.createEntityManagerFactory("NexoLabPU");
+
+	public static class LegacyUser {
+		private Long id;
+		private String name;
+		private String email;
+		private String passwordHash;
+		private String role;
+		private String sector;
+		private Date createdAt;
+
+		public Long getId() { return id; }
+		public String getName() { return name; }
+		public String getEmail() { return email; }
+		public String getPasswordHash() { return passwordHash; }
+		public String getRole() { return role; }
+		public String getSector() { return sector; }
+		public Date getCreatedAt() { return createdAt; }
+	}
 
 	public void save(Usuario user) {
 		EntityManager em = emf.createEntityManager();
@@ -25,6 +46,44 @@ public class UserDAO {
 				.orElse(null);
 		em.close();
 		return user;
+	}
+
+	/**
+	 * Compatibilidad: usuarios legacy guardados en la tabla antigua `users`.
+	 *
+	 * Columnas esperadas: id, name, email, passwordhash, role, sector, createdat.
+	 */
+	public LegacyUser findLegacyByEmail(String email) {
+		EntityManager em = emf.createEntityManager();
+		try {
+			Object[] row = (Object[]) em.createNativeQuery(
+					"SELECT id, name, email, passwordhash, role, sector, createdat FROM users WHERE email = ?1")
+					.setParameter(1, email)
+					.getResultStream()
+					.findFirst()
+					.orElse(null);
+			if (row == null) {
+				return null;
+			}
+
+			LegacyUser u = new LegacyUser();
+			u.id = row[0] == null ? null : ((Number) row[0]).longValue();
+			u.name = row[1] == null ? null : String.valueOf(row[1]);
+			u.email = row[2] == null ? null : String.valueOf(row[2]);
+			u.passwordHash = row[3] == null ? null : String.valueOf(row[3]);
+			u.role = row[4] == null ? null : String.valueOf(row[4]);
+			u.sector = row[5] == null ? null : String.valueOf(row[5]);
+			if (row[6] instanceof Timestamp ts) {
+				u.createdAt = new Date(ts.getTime());
+			} else if (row[6] instanceof Date d) {
+				u.createdAt = d;
+			} else {
+				u.createdAt = null;
+			}
+			return u;
+		} finally {
+			em.close();
+		}
 	}
 
 	public Usuario findById(Long id) {
