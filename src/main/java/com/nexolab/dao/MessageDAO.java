@@ -38,4 +38,21 @@ public class MessageDAO {
 		messages.sort(Comparator.comparing(Mensaje::getFechaEnviado));
 		return messages;
 	}
+
+	public List<Mensaje> findLastNByUsuario(Long userId, int cantidad) {
+		EntityManager em = emf.createEntityManager();
+		List<Mensaje> messages = em.createQuery(
+				"SELECT DISTINCT m FROM Mensaje m " +
+				"JOIN FETCH m.chat " +
+				"JOIN m.estados e " +
+				"WHERE e.usuario.idUsuario = :userId " +
+				"AND e.estado = com.nexolab.model.Estado.ENVIADO " +
+				"ORDER BY m.fechaEnviado DESC",
+				Mensaje.class)
+				.setParameter("userId", userId)
+				.setMaxResults(cantidad)
+				.getResultList();
+		em.close();
+		return messages;
+	}
 }
