@@ -50,7 +50,7 @@ public class MessageServlet extends HttpServlet {
 			map.put("fechaEnviado", m.getFechaEnviado());
 			map.put("contenido", m.getContenido());
 
-			List<Map<String, Object>> adjuntos = (m.getAdjuntos() == null ? List.<Adjunto>of() : m.getAdjuntos()).stream()
+			List<Map<String, Object>> adjuntos = (m.getAdjuntos() == null ? java.util.Set.<Adjunto>of() : m.getAdjuntos()).stream()
 					.map(a -> {
 						Map<String, Object> am = new HashMap<>();
 						am.put("idAdjunto", a.getIdAdjunto());
