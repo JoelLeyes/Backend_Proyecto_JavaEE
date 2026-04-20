@@ -13,6 +13,7 @@
         <class>com.nexolab.model.Adjunto</class>
         <class>com.nexolab.model.EstadoMensaje</class>
         <class>com.nexolab.model.Participa</class>
+        <class>com.nexolab.model.Participa</class>
 
         <properties>
             <property name="jakarta.persistence.jdbc.driver" value="org.postgresql.Driver"/>
