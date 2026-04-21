@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexolab.dao.UserDAO;
 import com.nexolab.model.Chat;
+import com.nexolab.model.TipoChat;
 import com.nexolab.model.Usuario;
 import com.nexolab.service.AuthService;
 import com.nexolab.service.ChatService;
@@ -43,7 +44,17 @@ public class ChatServlet extends HttpServlet {
 		List<Map<String, Object>> chatsList = chats.stream().map(c -> {
 			Map<String, Object> map = new HashMap<>();
 			map.put("idChat", c.getIdChat());
-			map.put("nombreChat", c.getNombreChat());
+
+			// Para chats privados: mostrar el nombre del OTRO participante, no el guardado en DB
+			String displayName = c.getNombreChat();
+			if (c.getTipoChat() == TipoChat.PRIVADO && c.getParticipantes() != null) {
+				displayName = c.getParticipantes().stream()
+						.filter(p -> !p.getIdUsuario().equals(usuario.getIdUsuario()))
+						.map(p -> (p.getNombre() + " " + p.getApellido()).trim())
+						.findFirst()
+						.orElse(c.getNombreChat());
+			}
+			map.put("nombreChat", displayName);
 			map.put("tipoChat", c.getTipoChat() == null ? null : c.getTipoChat().toString());
 			map.put("ultimoMensaje", c.getUltimoMensaje());
 			map.put("horaUltimoMensaje", c.getHoraUltimoMensaje() == null ? null : c.getHoraUltimoMensaje().toString());
@@ -89,10 +100,12 @@ public class ChatServlet extends HttpServlet {
 
 		Chat chat = chatService.crearChatPrivado(creador, otro);
 
+		// Nombre desde la perspectiva del creador = nombre del otro usuario
+		String nombreParaCreador = (otro.getNombre() + " " + otro.getApellido()).trim();
 		Map<String, Object> response = new HashMap<>();
-		response.put("idChat", chat.getIdChat());
-		response.put("nombreChat", chat.getNombreChat());
-		response.put("tipoChat", chat.getTipoChat() == null ? null : chat.getTipoChat().toString());
+		response.put("idChat",     chat.getIdChat());
+		response.put("nombreChat", nombreParaCreador);
+		response.put("tipoChat",   chat.getTipoChat() == null ? null : chat.getTipoChat().toString());
 		resp.setStatus(201);
 		resp.getWriter().write(objectMapper.writeValueAsString(response));
 	}
