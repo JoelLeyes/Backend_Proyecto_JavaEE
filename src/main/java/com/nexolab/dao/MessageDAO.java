@@ -39,6 +39,24 @@ public class MessageDAO {
 		return messages;
 	}
 
+	public List<Mensaje> findBySearch(Long chatId, String search) {
+		EntityManager em = emf.createEntityManager();
+		List<Mensaje> messages = em.createQuery(
+				"SELECT DISTINCT m FROM Mensaje m " +
+				"LEFT JOIN FETCH m.adjuntos " +
+				"LEFT JOIN FETCH m.estados e " +
+				"LEFT JOIN FETCH e.usuario " +
+				"WHERE m.chat.idChat = :chatId " +
+				"AND LOWER(m.contenido) LIKE LOWER(:search) " +
+				"ORDER BY m.fechaEnviado ASC",
+				Mensaje.class)
+				.setParameter("chatId", chatId)
+				.setParameter("search", "%" + search + "%")
+				.getResultList();
+		em.close();
+		return messages;
+	}
+
 	public List<Mensaje> findLastNByUsuario(Long userId, int cantidad) {
 		EntityManager em = emf.createEntityManager();
 		List<Mensaje> messages = em.createQuery(

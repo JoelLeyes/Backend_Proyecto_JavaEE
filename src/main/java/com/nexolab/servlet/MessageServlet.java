@@ -1,6 +1,7 @@
 package com.nexolab.servlet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexolab.dao.MessageDAO;
 import com.nexolab.model.Adjunto;
 import com.nexolab.model.Chat;
 import com.nexolab.model.EstadoMensaje;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 @WebServlet("/chats/*")
 public class MessageServlet extends HttpServlet {
 	private final MessageService messageService = new MessageService();
+	private final MessageDAO messageDAO = new MessageDAO();
 	private final ChatService chatService = new ChatService();
 	private final AuthService authService = new AuthService();
 	private final ObjectMapper objectMapper = new ObjectMapper();
@@ -41,8 +43,14 @@ public class MessageServlet extends HttpServlet {
 			return;
 		}
 
-		Date since = parseSince(req.getParameter("since"));
-		List<Mensaje> messages = messageService.obtenerMensajesDesdeFecha(ctx.chat, since);
+		String search = req.getParameter("search");
+		List<Mensaje> messages;
+		if (search != null && search.trim().length() >= 2) {
+			messages = messageDAO.findBySearch(ctx.chat.getIdChat(), search.trim());
+		} else {
+			Date since = parseSince(req.getParameter("since"));
+			messages = messageService.obtenerMensajesDesdeFecha(ctx.chat, since);
+		}
 
 		List<Map<String, Object>> msgList = messages.stream().map(m -> {
 			Map<String, Object> map = new HashMap<>();

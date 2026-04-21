@@ -64,7 +64,10 @@ public class ChatDAO {
 		EntityManager em = emf.createEntityManager();
 		Long userId = usuario == null ? null : usuario.getIdUsuario();
 		List<Chat> chats = em.createQuery(
-				"SELECT DISTINCT c FROM Chat c JOIN c.participantes p LEFT JOIN FETCH c.mensajes " +
+				"SELECT DISTINCT c FROM Chat c " +
+						"JOIN c.participantes p " +
+						"LEFT JOIN FETCH c.participantes " +
+						"LEFT JOIN FETCH c.mensajes " +
 						"WHERE p.idUsuario = :userId",
 				Chat.class)
 				.setParameter("userId", userId)
