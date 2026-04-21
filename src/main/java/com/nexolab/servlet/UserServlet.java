@@ -1,5 +1,6 @@
 package com.nexolab.servlet;
 
+import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexolab.dao.UserDAO;
@@ -71,6 +72,12 @@ public class UserServlet extends HttpServlet {
         if (current == null) return;
 
         String path = req.getPathInfo();
+
+        if ("/me/password".equals(path)) {
+            handleCambiarPassword(req, resp, current);
+            return;
+        }
+
         if (!"/me/estado".equals(path)) {
             resp.setStatus(404);
             return;
@@ -104,6 +111,54 @@ public class UserServlet extends HttpServlet {
         userDAO.update(current);
 
         resp.getWriter().write(objectMapper.writeValueAsString(usuarioToMap(current)));
+    }
+
+    private void handleCambiarPassword(HttpServletRequest req, HttpServletResponse resp, Usuario usuario)
+            throws IOException {
+        Map<String, Object> body;
+        try {
+            body = objectMapper.readValue(req.getInputStream(), new TypeReference<>() {});
+        } catch (Exception e) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"Cuerpo JSON inválido\"}");
+            return;
+        }
+
+        String passwordActual = body.containsKey("passwordActual") ? body.get("passwordActual").toString() : null;
+        String passwordNueva  = body.containsKey("passwordNueva")  ? body.get("passwordNueva").toString()  : null;
+
+        if (passwordActual == null || passwordNueva == null) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"Se requieren passwordActual y passwordNueva\"}");
+            return;
+        }
+        if (!BCrypt.verifyer().verify(passwordActual.toCharArray(), usuario.getPasswordHash()).verified) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"La contraseña actual es incorrecta\"}");
+            return;
+        }
+        try {
+            validatePasswordStrength(passwordNueva);
+        } catch (IllegalArgumentException e) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"" + e.getMessage() + "\"}");
+            return;
+        }
+
+        usuario.setPasswordHash(BCrypt.withDefaults().hashToString(12, passwordNueva.toCharArray()));
+        userDAO.update(usuario);
+        resp.getWriter().write("{\"message\":\"Contraseña actualizada correctamente\"}");
+    }
+
+    private void validatePasswordStrength(String password) {
+        if (password.length() < 8)
+            throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres");
+        if (password.chars().noneMatch(Character::isUpperCase))
+            throw new IllegalArgumentException("La contraseña debe contener al menos una letra mayúscula");
+        if (password.chars().noneMatch(Character::isDigit))
+            throw new IllegalArgumentException("La contraseña debe contener al menos un número");
+        if (password.chars().allMatch(Character::isLetterOrDigit))
+            throw new IllegalArgumentException("La contraseña debe contener al menos un carácter especial");
     }
 
     private Map<String, Object> usuarioToMap(Usuario u) {
