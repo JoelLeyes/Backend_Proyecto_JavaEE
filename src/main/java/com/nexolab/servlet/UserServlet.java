@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@WebServlet("/api/usuarios/*")
+@WebServlet("/usuarios/*")
 public class UserServlet extends HttpServlet {
 
     private final AuthService  authService  = new AuthService();
@@ -41,7 +41,7 @@ public class UserServlet extends HttpServlet {
             return;
         }
 
-        // búsqueda: GET /api/usuarios?q=texto  (path es null o "/")
+        // búsqueda: GET /usuarios?q=texto  (path es null o "/")
         String q = req.getParameter("q");
         if (q == null || q.trim().length() < 2) {
             resp.getWriter().write("[]");

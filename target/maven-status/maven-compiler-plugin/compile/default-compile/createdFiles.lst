@@ -1,7 +1,10 @@
+com\nexolab\servlet\UserServlet$1.class
 com\nexolab\dao\ChatDAO.class
+com\nexolab\service\EmailService$1.class
 com\nexolab\model\RolUsuario.class
 com\nexolab\servlet\AdminServlet.class
 com\nexolab\listener\AdminInitializer.class
+com\nexolab\service\EmailService.class
 com\nexolab\model\TipoEstado.class
 com\nexolab\servlet\MessageServlet$RequestContext.class
 com\nexolab\servlet\ChatServlet.class
@@ -11,6 +14,7 @@ com\nexolab\servlet\MessageServlet.class
 com\nexolab\servlet\CorsFilter.class
 com\nexolab\model\Participa.class
 com\nexolab\model\Usuario.class
+com\nexolab\servlet\UserServlet$2.class
 com\nexolab\service\AuthService.class
 com\nexolab\model\Mensaje.class
 com\nexolab\model\EstadoMensaje.class
@@ -28,4 +32,5 @@ com\nexolab\model\Sector.class
 com\nexolab\model\RolSistema.class
 com\nexolab\servlet\UserServlet.class
 com\nexolab\model\Estado.class
+com\nexolab\service\EmailService$SmtpConfig.class
 com\nexolab\servlet\AdminServlet$1.class
