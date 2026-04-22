@@ -10,6 +10,7 @@ import com.nexolab.model.Usuario;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
@@ -42,6 +43,45 @@ public class ChatService {
 
 	public Chat obtenerChatPorId(Long id) {
 		return chatDAO.findById(id);
+	}
+
+	public Chat crearChatGrupal(Usuario creador, String nombre, List<Usuario> miembros) {
+		Chat chat = new Chat(nombre, TipoChat.GRUPAL, new Date());
+
+		Set<Usuario> participantes = new HashSet<>();
+		participantes.add(creador);
+		participantes.addAll(miembros);
+		chat.setParticipantes(participantes);
+
+		List<Participa> participaciones = new ArrayList<>();
+		participaciones.add(new Participa(new Date(), RolUsuario.ADMINISTRADOR, creador, chat));
+		for (Usuario m : miembros) {
+			participaciones.add(new Participa(new Date(), RolUsuario.MIEMBRO, m, chat));
+		}
+
+		return chatDAO.saveWithParticipantes(chat, participaciones);
+	}
+
+	public List<Participa> obtenerParticipaciones(Long chatId) {
+		return chatDAO.findParticipacionesByChat(chatId);
+	}
+
+	public boolean esAdmin(Long chatId, Usuario usuario) {
+		Participa p = chatDAO.findParticipacion(chatId, usuario.getIdUsuario());
+		return p != null && p.getRolUsuario() == RolUsuario.ADMINISTRADOR;
+	}
+
+	public void agregarParticipante(Long chatId, Usuario solicitante, Usuario nuevo) {
+		if (!esAdmin(chatId, solicitante)) {
+			throw new SecurityException("Solo el administrador puede agregar participantes");
+		}
+		Participa existing = chatDAO.findParticipacion(chatId, nuevo.getIdUsuario());
+		if (existing != null) return;
+		chatDAO.agregarParticipante(chatId, nuevo.getIdUsuario(), RolUsuario.MIEMBRO);
+	}
+
+	public void abandonarChat(Long chatId, Usuario usuario) {
+		chatDAO.removeParticipante(chatId, usuario.getIdUsuario());
 	}
 
 	public Chat crearChatPrivado(Usuario creador, Usuario otro) {
