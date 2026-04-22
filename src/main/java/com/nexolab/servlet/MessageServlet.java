@@ -2,10 +2,13 @@ package com.nexolab.servlet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexolab.dao.MessageDAO;
+import com.nexolab.dao.UserDAO;
 import com.nexolab.model.Adjunto;
 import com.nexolab.model.Chat;
 import com.nexolab.model.EstadoMensaje;
 import com.nexolab.model.Mensaje;
+import com.nexolab.model.Participa;
+import com.nexolab.model.TipoChat;
 import com.nexolab.model.Usuario;
 import com.nexolab.service.AuthService;
 import com.nexolab.service.ChatService;
@@ -34,15 +37,32 @@ public class MessageServlet extends HttpServlet {
 	private final MessageDAO messageDAO = new MessageDAO();
 	private final ChatService chatService = new ChatService();
 	private final AuthService authService = new AuthService();
+	private final UserDAO userDAO = new UserDAO();
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		RequestContext ctx = authorizeAndResolveChat(req, resp);
-		if (ctx == null) {
+		if (ctx == null) return;
+
+		resp.setContentType("application/json");
+
+		if ("participantes".equals(ctx.subPath)) {
+			List<Participa> participaciones = chatService.obtenerParticipaciones(ctx.chat.getIdChat());
+			List<Map<String, Object>> list = participaciones.stream().map(p -> {
+				Map<String, Object> map = new HashMap<>();
+				Usuario u = p.getUsuario();
+				map.put("idUsuario", u.getIdUsuario());
+				map.put("nombre", u.getNombre());
+				map.put("apellido", u.getApellido());
+				map.put("rol", p.getRolUsuario() == null ? null : p.getRolUsuario().toString());
+				return map;
+			}).collect(Collectors.toList());
+			resp.getWriter().write(objectMapper.writeValueAsString(list));
 			return;
 		}
 
+		// messages
 		String search = req.getParameter("search");
 		List<Mensaje> messages;
 		if (search != null && search.trim().length() >= 2) {
@@ -93,17 +113,47 @@ public class MessageServlet extends HttpServlet {
 			return map;
 		}).collect(Collectors.toList());
 
-		resp.setContentType("application/json");
 		resp.getWriter().write(objectMapper.writeValueAsString(msgList));
 	}
 
 	@Override
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		RequestContext ctx = authorizeAndResolveChat(req, resp);
-		if (ctx == null) {
+		if (ctx == null) return;
+
+		resp.setContentType("application/json");
+
+		if ("participantes".equals(ctx.subPath)) {
+			if (ctx.chat.getTipoChat() != TipoChat.GRUPAL) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"Solo chats grupales\"}");
+				return;
+			}
+			Map<String, Object> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			Object uidObj = body.get("usuarioId");
+			if (uidObj == null) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"usuarioId requerido\"}");
+				return;
+			}
+			Long uid;
+			try { uid = Long.parseLong(uidObj.toString()); }
+			catch (NumberFormatException e) { resp.setStatus(400); return; }
+
+			Usuario nuevo = userDAO.findById(uid);
+			if (nuevo == null) { resp.setStatus(404); resp.getWriter().write("{\"message\":\"Usuario no encontrado\"}"); return; }
+
+			try {
+				chatService.agregarParticipante(ctx.chat.getIdChat(), ctx.usuario, nuevo);
+				resp.setStatus(201);
+			} catch (SecurityException e) {
+				resp.setStatus(403);
+				resp.getWriter().write("{\"message\":\"" + e.getMessage() + "\"}");
+			}
 			return;
 		}
 
+		// enviar mensaje
 		Map<String, Object> body = objectMapper.readValue(req.getInputStream(), Map.class);
 		String contenido = body.get("contenido") == null ? null : body.get("contenido").toString();
 		if (contenido == null) {
@@ -113,6 +163,28 @@ public class MessageServlet extends HttpServlet {
 
 		messageService.enviarMensaje(ctx.chat, ctx.usuario, contenido);
 		resp.setStatus(201);
+	}
+
+	@Override
+	protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		RequestContext ctx = authorizeAndResolveChat(req, resp);
+		if (ctx == null) return;
+
+		resp.setContentType("application/json");
+
+		if ("participantes".equals(ctx.subPath)) {
+			if (ctx.chat.getTipoChat() != TipoChat.GRUPAL) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"Solo chats grupales\"}");
+				return;
+			}
+			chatService.abandonarChat(ctx.chat.getIdChat(), ctx.usuario);
+			resp.setStatus(200);
+			resp.getWriter().write("{\"message\":\"Has abandonado el grupo\"}");
+			return;
+		}
+
+		resp.setStatus(404);
 	}
 
 	private RequestContext authorizeAndResolveChat(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -130,8 +202,13 @@ public class MessageServlet extends HttpServlet {
 
 		String pathInfo = req.getPathInfo();
 		String[] parts = (pathInfo == null ? "" : pathInfo).split("/");
-		// Esperado: /{chatId}/messages
-		if (parts.length < 3 || parts[1].isBlank() || !"messages".equals(parts[2])) {
+		// Esperado: /{chatId}/messages  o  /{chatId}/participantes
+		if (parts.length < 3 || parts[1].isBlank()) {
+			resp.setStatus(404);
+			return null;
+		}
+		String subPath = parts[2];
+		if (!"messages".equals(subPath) && !"participantes".equals(subPath)) {
 			resp.setStatus(404);
 			return null;
 		}
@@ -155,7 +232,7 @@ public class MessageServlet extends HttpServlet {
 			return null;
 		}
 
-		return new RequestContext(usuario, chat);
+		return new RequestContext(usuario, chat, subPath);
 	}
 
 	private Date parseSince(String sinceStr) {
@@ -188,10 +265,12 @@ public class MessageServlet extends HttpServlet {
 	private static final class RequestContext {
 		final Usuario usuario;
 		final Chat chat;
+		final String subPath;
 
-		RequestContext(Usuario usuario, Chat chat) {
+		RequestContext(Usuario usuario, Chat chat, String subPath) {
 			this.usuario = usuario;
 			this.chat = chat;
+			this.subPath = subPath;
 		}
 	}
 }

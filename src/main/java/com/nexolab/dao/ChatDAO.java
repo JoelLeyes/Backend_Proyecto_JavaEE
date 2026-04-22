@@ -1,6 +1,8 @@
 package com.nexolab.dao;
 
 import com.nexolab.model.Chat;
+import com.nexolab.model.Participa;
+import com.nexolab.model.RolUsuario;
 import com.nexolab.model.Usuario;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -74,5 +76,54 @@ public class ChatDAO {
 				.getResultList();
 		em.close();
 		return chats;
+	}
+
+	public Participa findParticipacion(Long chatId, Long userId) {
+		EntityManager em = emf.createEntityManager();
+		Participa p = em.createQuery(
+				"SELECT p FROM Participa p WHERE p.chat.idChat = :chatId AND p.usuario.idUsuario = :userId",
+				Participa.class)
+				.setParameter("chatId", chatId)
+				.setParameter("userId", userId)
+				.getResultStream()
+				.findFirst()
+				.orElse(null);
+		em.close();
+		return p;
+	}
+
+	public List<Participa> findParticipacionesByChat(Long chatId) {
+		EntityManager em = emf.createEntityManager();
+		List<Participa> list = em.createQuery(
+				"SELECT p FROM Participa p LEFT JOIN FETCH p.usuario WHERE p.chat.idChat = :chatId",
+				Participa.class)
+				.setParameter("chatId", chatId)
+				.getResultList();
+		em.close();
+		return list;
+	}
+
+	public void agregarParticipante(Long chatId, Long userId, RolUsuario rol) {
+		EntityManager em = emf.createEntityManager();
+		em.getTransaction().begin();
+		Chat chat = em.find(Chat.class, chatId);
+		Usuario usuario = em.find(Usuario.class, userId);
+		chat.getParticipantes().add(usuario);
+		em.persist(new Participa(new java.util.Date(), rol, usuario, chat));
+		em.getTransaction().commit();
+		em.close();
+	}
+
+	public void removeParticipante(Long chatId, Long userId) {
+		EntityManager em = emf.createEntityManager();
+		em.getTransaction().begin();
+		Chat chat = em.find(Chat.class, chatId);
+		chat.getParticipantes().removeIf(u -> u.getIdUsuario().equals(userId));
+		em.createQuery("DELETE FROM Participa p WHERE p.chat.idChat = :chatId AND p.usuario.idUsuario = :userId")
+				.setParameter("chatId", chatId)
+				.setParameter("userId", userId)
+				.executeUpdate();
+		em.getTransaction().commit();
+		em.close();
 	}
 }

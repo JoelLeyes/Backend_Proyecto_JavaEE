@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +76,39 @@ public class ChatServlet extends HttpServlet {
 		if (creador == null) { resp.setStatus(401); return; }
 
 		Map<String, Object> body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, Object>>() {});
+		String tipo = body.getOrDefault("tipo", "PRIVADO").toString();
+
+		if ("GRUPAL".equalsIgnoreCase(tipo)) {
+			String nombre = body.get("nombre") == null ? null : body.get("nombre").toString().trim();
+			if (nombre == null || nombre.isBlank()) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"nombre requerido para chat grupal\"}");
+				return;
+			}
+
+			List<Usuario> miembros = new ArrayList<>();
+			Object miembrosObj = body.get("miembros");
+			if (miembrosObj instanceof List) {
+				for (Object idObj : (List<?>) miembrosObj) {
+					try {
+						Long uid = Long.parseLong(idObj.toString());
+						Usuario u = userDAO.findById(uid);
+						if (u != null) miembros.add(u);
+					} catch (NumberFormatException ignored) {}
+				}
+			}
+
+			Chat chat = chatService.crearChatGrupal(creador, nombre, miembros);
+			Map<String, Object> response = new HashMap<>();
+			response.put("idChat", chat.getIdChat());
+			response.put("nombreChat", chat.getNombreChat());
+			response.put("tipoChat", chat.getTipoChat().toString());
+			resp.setStatus(201);
+			resp.getWriter().write(objectMapper.writeValueAsString(response));
+			return;
+		}
+
+		// Chat privado
 		Object otroIdObj = body.get("otroUsuarioId");
 		if (otroIdObj == null) {
 			resp.setStatus(400);
@@ -100,7 +134,6 @@ public class ChatServlet extends HttpServlet {
 
 		Chat chat = chatService.crearChatPrivado(creador, otro);
 
-		// Nombre desde la perspectiva del creador = nombre del otro usuario
 		String nombreParaCreador = (otro.getNombre() + " " + otro.getApellido()).trim();
 		Map<String, Object> response = new HashMap<>();
 		response.put("idChat",     chat.getIdChat());
