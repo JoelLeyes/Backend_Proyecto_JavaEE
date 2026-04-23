@@ -56,24 +56,6 @@ public class AuthServlet extends HttpServlet {
 
 			authService.register(nombre, apellido, email, password, cargo);
 
-			// Enviar email de bienvenida si SMTP está configurado
-			EmailService.SmtpConfig cfg = emailService.loadFromEnv();
-			if (cfg != null && email != null) {
-				String nombreCompleto = ((nombre == null ? "" : nombre) + " " + (apellido == null ? "" : apellido)).trim();
-				String subject = "Bienvenido a NexoLab";
-				String msg = "Hola " + nombreCompleto + ",\n\n" +
-						"Tu cuenta en NexoLab fue creada exitosamente.\n\n" +
-						"Podés iniciar sesión con tu email: " + email + "\n\n" +
-						"Si tenés algún problema para acceder, contactá al administrador del sistema.\n\n" +
-						"— Equipo NexoLab";
-				try {
-					emailService.sendTextEmail(cfg, email, subject, msg);
-				} catch (Exception mailEx) {
-					// El registro fue exitoso; solo falló el envío del email
-					System.err.println("[EmailService] No se pudo enviar email de bienvenida a " + email + ": " + mailEx.getMessage());
-				}
-			}
-
 			Map<String, Object> response = new HashMap<>();
 			response.put("message", "User registered successfully");
 			resp.getWriter().write(objectMapper.writeValueAsString(response));
