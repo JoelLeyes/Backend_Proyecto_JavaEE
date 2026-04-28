@@ -56,6 +56,7 @@ public class MessageServlet extends HttpServlet {
 				map.put("nombre", u.getNombre());
 				map.put("apellido", u.getApellido());
 				map.put("rol", p.getRolUsuario() == null ? null : p.getRolUsuario().toString());
+				map.put("tipoEstado", u.getTipoEstado() == null ? null : u.getTipoEstado().toString());
 				return map;
 			}).collect(Collectors.toList());
 			resp.getWriter().write(objectMapper.writeValueAsString(list));
