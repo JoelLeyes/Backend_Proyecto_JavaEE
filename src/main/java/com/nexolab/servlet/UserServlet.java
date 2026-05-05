@@ -78,6 +78,11 @@ public class UserServlet extends HttpServlet {
             return;
         }
 
+        if ("/me".equals(path)) {
+            handleActualizarPerfil(req, resp, current);
+            return;
+        }
+
         if (!"/me/estado".equals(path)) {
             resp.setStatus(404);
             return;
@@ -111,6 +116,35 @@ public class UserServlet extends HttpServlet {
         userDAO.update(current);
 
         resp.getWriter().write(objectMapper.writeValueAsString(usuarioToMap(current)));
+    }
+
+    private void handleActualizarPerfil(HttpServletRequest req, HttpServletResponse resp, Usuario usuario)
+            throws IOException {
+        Map<String, Object> body;
+        try {
+            body = objectMapper.readValue(req.getInputStream(), new TypeReference<>() {});
+        } catch (Exception e) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"Cuerpo JSON inválido\"}");
+            return;
+        }
+
+        String nombre   = body.containsKey("nombre")   ? body.get("nombre").toString().trim()   : null;
+        String apellido = body.containsKey("apellido")  ? body.get("apellido").toString().trim()  : null;
+
+        if (nombre == null || nombre.isEmpty()) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"El nombre no puede estar vacío\"}");
+            return;
+        }
+
+        usuario.setNombre(nombre);
+        if (apellido != null) {
+            usuario.setApellido(apellido);
+        }
+        userDAO.update(usuario);
+
+        resp.getWriter().write(objectMapper.writeValueAsString(usuarioToMap(usuario)));
     }
 
     private void handleCambiarPassword(HttpServletRequest req, HttpServletResponse resp, Usuario usuario)
