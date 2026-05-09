@@ -58,7 +58,9 @@ public class FileDownloadServlet extends HttpServlet {
             // Configurar respuesta
             resp.setContentType(tipoMime);
             resp.setContentLengthLong(archivo.length()); // Usar setContentLengthLong en lugar de setContentLength
-            resp.setHeader("Content-Disposition", "attachment; filename=\"" + archivo.getName() + "\"");
+            // Usar "inline" para que se muestre en el navegador en HTTP (no bloquea descarga en HTTP)
+            // Usar "attachment" requeriría HTTPS
+            resp.setHeader("Content-Disposition", "inline; filename=\"" + archivo.getName() + "\"");
             resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
             resp.setHeader("Pragma", "no-cache");
             resp.setHeader("Expires", "0");
