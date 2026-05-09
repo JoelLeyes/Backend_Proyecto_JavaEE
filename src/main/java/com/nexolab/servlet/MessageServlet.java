@@ -157,22 +157,24 @@ public class MessageServlet extends HttpServlet {
 			return;
 		}
 
-        // Enviar mensaje (con o sin adjunto)
+        // Enviar mensaje (con 0 o más adjuntos)
         String contenido = req.getParameter("contenido");
 
-        // Intentar obtener archivo adjunto (si existe)
-        jakarta.servlet.http.Part archivo = null;
+        // Obtener TODOS los archivos adjuntos (puede haber múltiples o ninguno)
+        java.util.Collection<jakarta.servlet.http.Part> archivos = null;
         try {
-            archivo = req.getPart("archivo");
+            archivos = req.getParts().stream()
+                .filter(p -> "archivo".equals(p.getName()))
+                .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
-            // Sin archivo es ok, continuar igual
+            // Sin archivos es ok, continuar igual
         }
 
-        // Validar que haya AL MENOS texto o archivo
-        if ((contenido == null || contenido.trim().isBlank()) &&
-                (archivo == null || archivo.getSize() == 0)) {
+        // Validar que haya AL MENOS texto o archivos
+        boolean tieneArchivos = archivos != null && !archivos.isEmpty();
+        if ((contenido == null || contenido.trim().isBlank()) && !tieneArchivos) {
             resp.setStatus(400);
-            resp.getWriter().write("{\"message\":\"Debes escribir un mensaje o adjuntar un archivo\"}");
+            resp.getWriter().write("{\"message\":\"Debes escribir un mensaje o adjuntar archivos\"}");
             return;
         }
 
@@ -181,9 +183,10 @@ public class MessageServlet extends HttpServlet {
             contenido = "";
         }
 
-        // Si hay archivo: enviar con adjunto, sino: enviar sin adjunto
-        if (archivo != null && archivo.getSize() > 0) {
-            messageService.enviarMensajeConAdjunto(ctx.chat, ctx.usuario, contenido, archivo);
+        // Si hay archivos: enviar con adjuntos, sino: enviar sin adjuntos
+        if (tieneArchivos) {
+            messageService.enviarMensajeConAdjuntos(ctx.chat, ctx.usuario, contenido, 
+                new java.util.ArrayList<>(archivos));
         } else {
             messageService.enviarMensaje(ctx.chat, ctx.usuario, contenido);
         }

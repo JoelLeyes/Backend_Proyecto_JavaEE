@@ -121,6 +121,78 @@ public class MessageService {
 		messageDAO.save(mensaje);
 	}
 
+	/**
+	 * Envía un mensaje con MÚLTIPLES adjuntos (archivos)
+	 * @param chat Chat donde se envía
+	 * @param emisor Usuario que envía
+	 * @param contenido Texto del mensaje
+	 * @param archivos Lista de archivos a adjuntar
+	 */
+	public void enviarMensajeConAdjuntos(Chat chat, Usuario emisor, String contenido, java.util.List<Part> archivos) {
+		if (chat == null) {
+			throw new IllegalArgumentException("Chat requerido");
+		}
+		if (emisor == null || emisor.getIdUsuario() == null) {
+			throw new IllegalArgumentException("Emisor requerido");
+		}
+        // Permitir contenido vacío (especialmente si hay adjuntos)
+        if (contenido == null) {
+            contenido = "";
+        }
+
+		// Crear mensaje
+		Mensaje mensaje = new Mensaje();
+		mensaje.setChat(chat);
+		mensaje.setContenido(contenido);
+		mensaje.setFechaEnviado(new Date());
+
+		// Guardar TODOS los archivos adjuntos
+		if (archivos != null && !archivos.isEmpty()) {
+			for (Part archivo : archivos) {
+				if (archivo != null && archivo.getSize() > 0) {
+					try {
+						// Guardar archivo en disco y obtener URL
+						String url = FileStorageUtil.guardarArchivo(archivo);
+						String nombreArchivo = archivo.getSubmittedFileName();
+						String tipoArchivo = archivo.getContentType();
+
+						// Crear objeto Adjunto y asociarlo al mensaje
+						Adjunto adjunto = new Adjunto(tipoArchivo, nombreArchivo, url, mensaje);
+						mensaje.agregarAdjunto(adjunto);
+					} catch (IOException e) {
+						// Log error pero continuar con los demás archivos
+						System.err.println("Error al guardar archivo: " + e.getMessage());
+					}
+				}
+			}
+		}
+
+		// Crear estados del mensaje (entregado a todos los participantes)
+		Date ahora = new Date();
+		if (chat.getParticipantes() != null && !chat.getParticipantes().isEmpty()) {
+			for (Usuario u : chat.getParticipantes()) {
+				if (u == null || u.getIdUsuario() == null) {
+					continue;
+				}
+				EstadoMensaje estadoMensaje = new EstadoMensaje(
+					u.getIdUsuario().equals(emisor.getIdUsuario()) ? Estado.ENVIADO : Estado.ENTREGADO,
+					ahora
+				);
+				estadoMensaje.setUsuario(u);
+				estadoMensaje.setMensaje(mensaje);
+				mensaje.getEstados().add(estadoMensaje);
+			}
+		} else {
+			EstadoMensaje estadoMensaje = new EstadoMensaje(Estado.ENVIADO, ahora);
+			estadoMensaje.setUsuario(emisor);
+			estadoMensaje.setMensaje(mensaje);
+			mensaje.getEstados().add(estadoMensaje);
+		}
+
+		// Guardar mensaje con adjuntos en BD
+		messageDAO.save(mensaje);
+	}
+
 	public List<Mensaje> obtenerMensajesDesdeFecha(Chat chat, Date desdeFecha) {
 		return messageDAO.findByChatSince(chat, desdeFecha);
 	}
