@@ -88,6 +88,7 @@ public class MessageServlet extends HttpServlet {
 						am.put("tipoArchivo", a.getTipoArchivo());
 						am.put("nombreArchivo", a.getNombreArchivo());
 						am.put("urlArchivo", a.getUrlArchivo());
+						am.put("rutaArchivo", a.getUrlArchivo()); // También incluir como rutaArchivo para el frontend
 						return am;
 					})
 					.collect(Collectors.toList());
