@@ -14,6 +14,7 @@ import com.nexolab.service.AuthService;
 import com.nexolab.service.ChatService;
 import com.nexolab.service.MessageService;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@MultipartConfig
 @WebServlet("/chats/*")
 public class MessageServlet extends HttpServlet {
 	private final MessageService messageService = new MessageService();
@@ -154,16 +156,37 @@ public class MessageServlet extends HttpServlet {
 			return;
 		}
 
-		// enviar mensaje
-		Map<String, Object> body = objectMapper.readValue(req.getInputStream(), Map.class);
-		String contenido = body.get("contenido") == null ? null : body.get("contenido").toString();
-		if (contenido == null) {
-			Object c = body.get("content");
-			contenido = c == null ? null : c.toString();
-		}
+        // Enviar mensaje (con o sin adjunto)
+        String contenido = req.getParameter("contenido");
 
-		messageService.enviarMensaje(ctx.chat, ctx.usuario, contenido);
-		resp.setStatus(201);
+        // Intentar obtener archivo adjunto (si existe)
+        jakarta.servlet.http.Part archivo = null;
+        try {
+            archivo = req.getPart("archivo");
+        } catch (Exception e) {
+            // Sin archivo es ok, continuar igual
+        }
+
+        // Validar que haya AL MENOS texto o archivo
+        if ((contenido == null || contenido.trim().isBlank()) &&
+                (archivo == null || archivo.getSize() == 0)) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"Debes escribir un mensaje o adjuntar un archivo\"}");
+            return;
+        }
+
+        // Normalizar contenido vacío a string vacío
+        if (contenido == null || contenido.trim().isBlank()) {
+            contenido = "";
+        }
+
+        // Si hay archivo: enviar con adjunto, sino: enviar sin adjunto
+        if (archivo != null && archivo.getSize() > 0) {
+            messageService.enviarMensajeConAdjunto(ctx.chat, ctx.usuario, contenido, archivo);
+        } else {
+            messageService.enviarMensaje(ctx.chat, ctx.usuario, contenido);
+        }
+        resp.setStatus(201);
 	}
 
 	@Override
