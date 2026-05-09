@@ -28,10 +28,13 @@ public class FileDownloadServlet extends HttpServlet {
 
         // Obtener nombre del archivo (ej: "abc123_foto.jpg")
         String nombreArchivo = pathInfo.substring(1);
-        File archivo = new File("uploads" + File.separator + nombreArchivo);
+        
+        // Usar la misma ruta que FileStorageUtil: carpeta "uploads" con ruta absoluta
+        String rutaCarpeta = new java.io.File("uploads").getAbsolutePath();
+        File archivo = new File(rutaCarpeta + File.separator + nombreArchivo);
 
-        // Validar que existe y es un archivo
-        if (!archivo.exists() || !archivo.isFile()) {
+        // Validar que existe, es un archivo y está dentro de la carpeta uploads (seguridad)
+        if (!archivo.exists() || !archivo.isFile() || !archivo.getAbsolutePath().startsWith(rutaCarpeta)) {
             resp.setStatus(404);
             return;
         }
