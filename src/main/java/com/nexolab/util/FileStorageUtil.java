@@ -53,22 +53,47 @@ public class FileStorageUtil {
         // Validar archivo antes de guardarlo
         validarArchivo(parte);
 
-        // Crear carpeta "uploads" si no existe
-        String rutaCarpeta = new File(CARPETA_SUBIDAS).getAbsolutePath();
-        File carpeta = new File(rutaCarpeta);
-        if (!carpeta.exists()) {
-            carpeta.mkdirs();
+        try {
+            // Crear carpeta "uploads" si no existe
+            String rutaCarpeta = new File(CARPETA_SUBIDAS).getAbsolutePath();
+            File carpeta = new File(rutaCarpeta);
+            if (!carpeta.exists()) {
+                if (!carpeta.mkdirs()) {
+                    throw new IOException("No se pudo crear la carpeta de descargas: " + rutaCarpeta);
+                }
+            }
+
+            // Generar nombre único (UUID + nombre original)
+            String nombreOriginal = parte.getSubmittedFileName();
+            if (nombreOriginal == null || nombreOriginal.isEmpty()) {
+                throw new IOException("El archivo no tiene nombre válido");
+            }
+            
+            // Sanitizar el nombre del archivo
+            nombreOriginal = nombreOriginal.replaceAll("[^a-zA-Z0-9._-]", "_");
+            String nombreUnico = UUID.randomUUID() + "_" + nombreOriginal;
+            String rutaCompleta = rutaCarpeta + File.separator + nombreUnico;
+
+            // Guardar el archivo en disco
+            parte.write(rutaCompleta);
+            
+            // Verificar que el archivo se guardó correctamente
+            File archivoGuardado = new File(rutaCompleta);
+            if (!archivoGuardado.exists() || archivoGuardado.length() == 0) {
+                throw new IOException("El archivo no se guardó correctamente o está vacío");
+            }
+            
+            System.out.println("Archivo guardado exitosamente: " + rutaCompleta + " (" + archivoGuardado.length() + " bytes)");
+
+            // Devolver URL pública (ej: /uploads/uuid_nombre.pdf)
+            return "/uploads/" + nombreUnico;
+        } catch (IOException e) {
+            System.err.println("Error al guardar archivo: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.err.println("Error inesperado al guardar archivo: " + e.getMessage());
+            e.printStackTrace();
+            throw new IOException("Error al guardar archivo: " + e.getMessage(), e);
         }
-
-        // Generar nombre único (UUID + nombre original)
-        String nombreOriginal = parte.getSubmittedFileName();
-        String nombreUnico = UUID.randomUUID() + "_" + nombreOriginal;
-        String rutaCompleta = rutaCarpeta + File.separator + nombreUnico;
-
-        // Guardar el archivo en disco
-        parte.write(rutaCompleta);
-
-        // Devolver URL pública (ej: /uploads/uuid_nombre.pdf)
-        return "/uploads/" + nombreUnico;
     }
 }
