@@ -23,6 +23,7 @@ com\nexolab\service\MessageService.class
 com\nexolab\servlet\AuthServlet.class
 com\nexolab\model\TipoChat.class
 com\nexolab\service\ChatService.class
+com\nexolab\util\FileStorageUtil.class
 com\nexolab\dao\UserDAO$LegacyUser.class
 com\nexolab\dao\UserDAO.class
 com\nexolab\dao\MessageDAO.class
@@ -34,3 +35,4 @@ com\nexolab\servlet\UserServlet.class
 com\nexolab\model\Estado.class
 com\nexolab\service\EmailService$SmtpConfig.class
 com\nexolab\servlet\AdminServlet$1.class
+com\nexolab\servlet\FileDownloadServlet.class

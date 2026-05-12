@@ -33,12 +33,22 @@ public class EmailService {
     }
 
     public SmtpConfig loadFromEnv() {
-        String host = envOrNull("SMTP_HOST");
-        String portStr = envOrNull("SMTP_PORT");
-        String username = envOrNull("SMTP_USER");
-        String password = envOrNull("SMTP_PASS");
-        String from = envOrNull("SMTP_FROM");
+        String host = normalizeEnv(envOrNull("SMTP_HOST"));
+        String portStr = normalizeEnv(envOrNull("SMTP_PORT"));
+        String username = normalizeEnv(envOrNull("SMTP_USER"));
+        String password = normalizeEnv(envOrNull("SMTP_PASS"));
+        String from = normalizeEnv(envOrNull("SMTP_FROM"));
         boolean startTls = Boolean.parseBoolean(envOrDefault("SMTP_STARTTLS", "true"));
+
+        // Gmail "app passwords" a veces se copian con espacios (XXXX XXXX XXXX XXXX).
+        // Normalizamos para que funcione igual.
+        if (password != null && password.indexOf(' ') >= 0) {
+            String noSpaces = password.replace(" ", "").replace("\t", "");
+            // Evita cambios inesperados: sólo aplicamos si el resultado parece una app-password.
+            if (noSpaces.length() == 16) {
+                password = noSpaces;
+            }
+        }
 
         if (isBlank(host) || isBlank(portStr) || isBlank(username) || isBlank(password) || isBlank(from)) {
             return null;
@@ -52,6 +62,12 @@ public class EmailService {
         }
 
         return new SmtpConfig(host, port, startTls, username, password, from);
+    }
+
+    private static String normalizeEnv(String v) {
+        if (v == null) return null;
+        String t = v.trim();
+        return t.isEmpty() ? null : t;
     }
 
     public void sendTextEmail(SmtpConfig cfg, String to, String subject, String body) throws MessagingException {
