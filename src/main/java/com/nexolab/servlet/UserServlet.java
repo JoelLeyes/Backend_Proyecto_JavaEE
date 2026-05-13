@@ -78,6 +78,11 @@ public class UserServlet extends HttpServlet {
             return;
         }
 
+        if ("/me/push-token".equals(path)) {
+            handleActualizarPushToken(req, resp, current);
+            return;
+        }
+
         if ("/me".equals(path)) {
             handleActualizarPerfil(req, resp, current);
             return;
@@ -184,6 +189,24 @@ public class UserServlet extends HttpServlet {
         resp.getWriter().write("{\"message\":\"Contraseña actualizada correctamente\"}");
     }
 
+    private void handleActualizarPushToken(HttpServletRequest req, HttpServletResponse resp, Usuario usuario)
+            throws IOException {
+        Map<String, Object> body;
+        try {
+            body = objectMapper.readValue(req.getInputStream(), new TypeReference<>() {});
+        } catch (Exception e) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"Cuerpo JSON inválido\"}");
+            return;
+        }
+
+        String pushToken = body.containsKey("pushToken") ? body.get("pushToken").toString().trim() : null;
+        usuario.setPushToken(pushToken);
+        userDAO.update(usuario);
+
+        resp.getWriter().write(objectMapper.writeValueAsString(usuarioToMap(usuario)));
+    }
+
     private void validatePasswordStrength(String password) {
         if (password.length() < 8)
             throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres");
@@ -205,6 +228,7 @@ public class UserServlet extends HttpServlet {
         map.put("sector",       u.getSector()     == null ? null : u.getSector().toString());
         map.put("tipoEstado",   u.getTipoEstado() == null ? null : u.getTipoEstado().toString());
         map.put("rolSistema",   u.getRolSistema() == null ? "USUARIO" : u.getRolSistema().toString());
+        map.put("pushToken",    u.getPushToken());
         return map;
     }
 

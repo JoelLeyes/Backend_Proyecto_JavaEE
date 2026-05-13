@@ -34,6 +34,9 @@ public class Usuario {
     @Column(name = "foto_perfil_url")
     private String fotoPerfilUrl;
 
+    @Column(name = "push_token", length = 512)
+    private String pushToken;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Sector sector = Sector.SIN_ASIGNAR;
@@ -80,6 +83,7 @@ public class Usuario {
     public void setPasswordSalt(String passwordSalt) { this.passwordSalt = passwordSalt; }
     public void setCargo(String cargo) { this.cargo = cargo; }
     public void setFotoPerfilUrl(String fotoPerfilUrl) { this.fotoPerfilUrl = fotoPerfilUrl; }
+    public void setPushToken(String pushToken) { this.pushToken = (pushToken == null || pushToken.isBlank()) ? null : pushToken.trim(); }
     public void setSector(Sector sector) { this.sector = (sector == null) ? Sector.SIN_ASIGNAR : sector; }
     public void setTipoEstado(TipoEstado tipoEstado) { this.tipoEstado = tipoEstado; }
     public void setFechaCreacion(Date fechaCreacion) {
@@ -111,6 +115,7 @@ public class Usuario {
     public String getPasswordSalt() { return passwordSalt; }
     public String getCargo() { return cargo; }
     public String getFotoPerfilUrl() { return fotoPerfilUrl; }
+    public String getPushToken() { return pushToken; }
     public Sector getSector() { return sector; }
     public TipoEstado getTipoEstado() { return tipoEstado; }
     public Date getFechaCreacion() { return fechaCreacion; }
