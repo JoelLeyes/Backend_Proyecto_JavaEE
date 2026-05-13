@@ -13,6 +13,7 @@ import java.util.List;
 
 public class MessageService {
 	private final MessageDAO messageDAO = new MessageDAO();
+	private final PushNotificationService pushNotificationService = new PushNotificationService();
 
 	public void enviarMensaje(Chat chat, Usuario emisor, String contenido) {
 		if (chat == null) {
@@ -52,6 +53,7 @@ public class MessageService {
 		}
 
 		messageDAO.save(mensaje);
+		pushNotificationService.notifyMessage(chat, emisor, mensaje);
 	}
 
 	/**
@@ -119,6 +121,7 @@ public class MessageService {
 
 		// Guardar mensaje con adjunto en BD
 		messageDAO.save(mensaje);
+		pushNotificationService.notifyMessage(chat, emisor, mensaje);
 	}
 
 	/**
@@ -191,6 +194,7 @@ public class MessageService {
 
 		// Guardar mensaje con adjuntos en BD
 		messageDAO.save(mensaje);
+		pushNotificationService.notifyMessage(chat, emisor, mensaje);
 	}
 
 	public List<Mensaje> obtenerMensajesDesdeFecha(Chat chat, Date desdeFecha) {
