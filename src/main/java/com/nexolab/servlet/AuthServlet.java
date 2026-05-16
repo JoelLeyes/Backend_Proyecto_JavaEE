@@ -35,6 +35,8 @@ public class AuthServlet extends HttpServlet {
 			handleLogin(req, resp);
 		} else if ("/forgot-password".equals(path)) {
 			handleForgotPassword(req, resp);
+		} else if ("/resend-welcome".equals(path)) {
+			handleResendWelcome(req, resp);
 		} else {
 			resp.setStatus(404);
 		}
@@ -61,15 +63,8 @@ public class AuthServlet extends HttpServlet {
 			EmailService.SmtpConfig cfg = emailService.loadFromEnv();
 			if (cfg != null && email != null && !email.isBlank()) {
 				String fullName = ((nombre == null ? "" : nombre.trim()) + " " + (apellido == null ? "" : apellido.trim())).trim();
-				String greeting = fullName.isEmpty() ? "Hola" : "Hola " + fullName;
-				String subject = "Bienvenido a NexoLab";
-				String msg = greeting + ",\n\n"
-						+ "Tu cuenta ya esta lista y podras empezar a usar NexoLab.\n\n"
-						+ "Saludos,\n"
-						+ "Equipo NexoLab";
-
 				try {
-					emailService.sendTextEmail(cfg, email, subject, msg);
+					emailService.sendTextEmail(cfg, email, buildWelcomeSubject(), buildWelcomeBody(fullName));
 					welcomeEmailSent = true;
 				} catch (Exception ex) {
 					System.err.println("No se pudo enviar el correo de bienvenida: " + ex.getMessage());
@@ -168,6 +163,65 @@ public class AuthServlet extends HttpServlet {
 		}
 
 		resp.getWriter().write(objectMapper.writeValueAsString(response));
+	}
+
+	private void handleResendWelcome(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		Map<String, String> body;
+		try {
+			body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, String>>() {});
+		} catch (Exception e) {
+			resp.setStatus(400);
+			resp.getWriter().write("{\"message\":\"Cuerpo JSON inválido\"}");
+			return;
+		}
+
+		String email = body.get("email");
+		if (email == null || email.isBlank()) {
+			resp.setStatus(400);
+			resp.getWriter().write("{\"message\":\"Email es requerido\"}");
+			return;
+		}
+
+		EmailService.SmtpConfig cfg = emailService.loadFromEnv();
+		if (cfg == null) {
+			resp.setStatus(500);
+			resp.getWriter().write("{\"message\":\"Envío de correo no configurado en el servidor\"}");
+			return;
+		}
+
+		// Respuesta genérica: no filtramos si el email existe o no.
+		Map<String, Object> response = new HashMap<>();
+		response.put("message", "Si el correo está registrado, vas a recibir el correo de bienvenida nuevamente.");
+
+		Usuario user = userDAO.findByEmail(email.trim());
+		if (user != null) {
+			String fullName = ((user.getNombre() == null ? "" : user.getNombre().trim())
+					+ " " + (user.getApellido() == null ? "" : user.getApellido().trim())).trim();
+			try {
+				emailService.sendTextEmail(cfg, email.trim(), buildWelcomeSubject(), buildWelcomeBody(fullName));
+			} catch (Exception e) {
+				resp.setStatus(500);
+				resp.getWriter().write("{\"message\":\"No se pudo enviar el correo\"}");
+				return;
+			}
+		}
+
+		resp.getWriter().write(objectMapper.writeValueAsString(response));
+	}
+
+	private static String buildWelcomeSubject() {
+		return "Bienvenido a NexoLab";
+	}
+
+	private static String buildWelcomeBody(String fullName) {
+		String greeting = (fullName == null || fullName.isBlank()) ? "Hola" : "Hola " + fullName;
+		return greeting + ",\n\n"
+				+ "¡Tu cuenta en NexoLab ya está lista!\n\n"
+				+ "Ya podés iniciar sesión y empezar a comunicarte con tu equipo en tiempo real.\n\n"
+				+ "Si tenés algún problema para acceder, usá la opción \"Olvidé mi contraseña\" "
+				+ "en la pantalla de inicio de sesión.\n\n"
+				+ "Saludos,\n"
+				+ "El equipo de NexoLab";
 	}
 
 	private static String generateTempPassword() {
