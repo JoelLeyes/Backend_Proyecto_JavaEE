@@ -104,11 +104,23 @@ public class MessageServlet extends HttpServlet {
 		Map<Long, List<Reaccion>> reaccionesPorMensaje = reaccionDAO.findByMensajeIds(msgIds);
 		Long myId = ctx.usuario.getIdUsuario();
 
+		// Marcar mensajes como leídos para este usuario
+		chatService.markAsRead(ctx.chat.getIdChat(), ctx.usuario.getIdUsuario());
+
 		List<Map<String, Object>> msgList = messages.stream().map(m -> {
 			Map<String, Object> map = new HashMap<>();
 			map.put("idMensaje", m.getIdMensaje());
 			map.put("fechaEnviado", m.getFechaEnviado());
 			map.put("contenido", m.getContenido());
+
+			if (m.getRespondeA() != null) {
+				Map<String, Object> ra = new HashMap<>();
+				ra.put("idMensaje", m.getRespondeA().getIdMensaje());
+				String raContenido = m.getRespondeA().getContenido();
+				ra.put("contenido", raContenido != null && raContenido.length() > 120
+						? raContenido.substring(0, 120) + "…" : raContenido);
+				map.put("respondeA", ra);
+			}
 
 			List<Map<String, Object>> adjuntos = (m.getAdjuntos() == null ? java.util.Set.<Adjunto>of() : m.getAdjuntos()).stream()
 					.map(a -> {
@@ -235,6 +247,12 @@ public class MessageServlet extends HttpServlet {
         // Enviar mensaje (con 0 o más adjuntos)
         String contenido = req.getParameter("contenido");
 
+        Long respondaMensajeId = null;
+        String respondaIdStr = req.getParameter("respondaId");
+        if (respondaIdStr != null && !respondaIdStr.isBlank()) {
+            try { respondaMensajeId = Long.parseLong(respondaIdStr); } catch (NumberFormatException ignored) {}
+        }
+
         // Obtener TODOS los archivos adjuntos (puede haber múltiples o ninguno)
         java.util.Collection<jakarta.servlet.http.Part> archivos = null;
         try {
@@ -260,10 +278,10 @@ public class MessageServlet extends HttpServlet {
 
         // Si hay archivos: enviar con adjuntos, sino: enviar sin adjuntos
         if (tieneArchivos) {
-            messageService.enviarMensajeConAdjuntos(ctx.chat, ctx.usuario, contenido, 
-                new java.util.ArrayList<>(archivos));
+            messageService.enviarMensajeConAdjuntos(ctx.chat, ctx.usuario, contenido,
+                new java.util.ArrayList<>(archivos), respondaMensajeId);
         } else {
-            messageService.enviarMensaje(ctx.chat, ctx.usuario, contenido);
+            messageService.enviarMensaje(ctx.chat, ctx.usuario, contenido, respondaMensajeId);
         }
         resp.setStatus(201);
 	}

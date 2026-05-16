@@ -27,6 +27,10 @@ public class Participa {
     @JoinColumn(name = "chat_id", nullable = false)
     private Chat chat;
 
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "ultima_lectura")
+    private Date ultimaLectura;
+
     public Participa() {}
     public Participa(Date fechaUnion, RolUsuario rolUsuario, Usuario usuario, Chat chat) {
         this.fechaUnion = fechaUnion;
@@ -40,10 +44,12 @@ public class Participa {
     public void setRolUsuario(RolUsuario rolUsuario) { this.rolUsuario = rolUsuario; }
     public void setChat(Chat chat) { this.chat = chat; }
     public void setUsuario(Usuario usuario) { this.usuario = usuario; }
+    public void setUltimaLectura(Date ultimaLectura) { this.ultimaLectura = ultimaLectura; }
 
     public Long getIdParticipacion() { return idParticipacion; }
     public Date getFechaUnion() { return fechaUnion; }
     public RolUsuario getRolUsuario() { return rolUsuario; }
     public Chat getChat() { return chat; }
     public Usuario getUsuario() { return usuario; }
+    public Date getUltimaLectura() { return ultimaLectura; }
 }

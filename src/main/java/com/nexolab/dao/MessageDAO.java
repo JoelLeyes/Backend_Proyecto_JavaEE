@@ -21,6 +21,13 @@ public class MessageDAO {
 		em.close();
 	}
 
+	public Mensaje findById(Long id) {
+		EntityManager em = emf.createEntityManager();
+		Mensaje m = em.find(Mensaje.class, id);
+		em.close();
+		return m;
+	}
+
 	public List<Mensaje> findByChatSince(Chat chat, Date since) {
 		EntityManager em = emf.createEntityManager();
 		List<Mensaje> messages = em.createQuery(
@@ -28,6 +35,7 @@ public class MessageDAO {
 						"LEFT JOIN FETCH m.adjuntos " +
 						"LEFT JOIN FETCH m.estados e " +
 						"LEFT JOIN FETCH e.usuario " +
+						"LEFT JOIN FETCH m.respondeA " +
 						"WHERE m.chat = :chat AND m.fechaEnviado > :since",
 				Mensaje.class)
 				.setParameter("chat", chat)
@@ -46,6 +54,7 @@ public class MessageDAO {
 				"LEFT JOIN FETCH m.adjuntos " +
 				"LEFT JOIN FETCH m.estados e " +
 				"LEFT JOIN FETCH e.usuario " +
+				"LEFT JOIN FETCH m.respondeA " +
 				"WHERE m.chat.idChat = :chatId " +
 				"AND LOWER(m.contenido) LIKE LOWER(:search) " +
 				"ORDER BY m.fechaEnviado ASC",
