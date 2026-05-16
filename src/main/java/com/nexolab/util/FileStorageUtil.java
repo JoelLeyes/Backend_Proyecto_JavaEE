@@ -16,9 +16,15 @@ public class FileStorageUtil {
 
     // Inicializado por MessageServlet.init() con getRealPath("/uploads")
     private static volatile String uploadDir = null;
+    // Prefijo de URL pública, ej: "/api/uploads/" — inicializado con el contextPath real
+    private static volatile String urlPrefix = "/uploads/";
 
     public static void setUploadDir(String dir) {
         uploadDir = dir;
+    }
+
+    public static void setUrlPrefix(String prefix) {
+        urlPrefix = prefix;
     }
 
     public static String getUploadDir() {
@@ -99,8 +105,8 @@ public class FileStorageUtil {
             
             System.out.println("Archivo guardado exitosamente: " + rutaCompleta + " (" + archivoGuardado.length() + " bytes)");
 
-            // Devolver URL pública (ej: /uploads/uuid_nombre.pdf)
-            return "/uploads/" + nombreUnico;
+            // Devolver URL pública usando el prefijo configurado (ej: /api/uploads/uuid_nombre.pdf)
+            return urlPrefix + nombreUnico;
         } catch (IOException e) {
             System.err.println("Error al guardar archivo: " + e.getMessage());
             throw e;

@@ -53,6 +53,10 @@ public class MessageServlet extends HttpServlet {
 		if (realPath != null) {
 			com.nexolab.util.FileStorageUtil.setUploadDir(realPath);
 		}
+		// Configurar prefijo de URL pública según el context path del deployment
+		// Ej: si el WAR está en /api → contextPath="/api" → urlPrefix="/api/uploads/"
+		String contextPath = getServletContext().getContextPath();
+		com.nexolab.util.FileStorageUtil.setUrlPrefix(contextPath + "/uploads/");
 	}
 
 	@Override
