@@ -49,14 +49,25 @@ public class MessageServlet extends HttpServlet {
 
 	@Override
 	public void init() throws ServletException {
-		String realPath = getServletContext().getRealPath("/uploads");
-		if (realPath != null) {
-			com.nexolab.util.FileStorageUtil.setUploadDir(realPath);
+		// Prioridad 1: variable de entorno UPLOAD_DIR → directorio externo que sobrevive redeploys
+		// Prioridad 2: getRealPath dentro del WAR → se borra en cada redeploy (no recomendado en prod)
+		// Prioridad 3: tmpdir fallback (definido en FileStorageUtil.getUploadDir())
+		String envDir = System.getenv("UPLOAD_DIR");
+		if (envDir != null && !envDir.isBlank()) {
+			com.nexolab.util.FileStorageUtil.setUploadDir(envDir.trim());
+		} else {
+			String realPath = getServletContext().getRealPath("/uploads");
+			if (realPath != null) {
+				com.nexolab.util.FileStorageUtil.setUploadDir(realPath);
+			}
 		}
-		// Configurar prefijo de URL pública según el context path del deployment
-		// Ej: si el WAR está en /api → contextPath="/api" → urlPrefix="/api/uploads/"
+
 		String contextPath = getServletContext().getContextPath();
 		com.nexolab.util.FileStorageUtil.setUrlPrefix(contextPath + "/uploads/");
+
+		System.out.println("[NexoLab] uploadDir  = " + com.nexolab.util.FileStorageUtil.getUploadDir());
+		System.out.println("[NexoLab] urlPrefix  = " + contextPath + "/uploads/");
+		System.out.println("[NexoLab] contextPath= " + contextPath);
 	}
 
 	@Override
