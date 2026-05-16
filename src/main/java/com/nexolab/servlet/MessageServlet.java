@@ -174,7 +174,8 @@ public class MessageServlet extends HttpServlet {
 		}
 
 		if ("reacciones".equals(ctx.subPath)) {
-			Map<String, Object> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			Map<String, Object> body = objectMapper.readValue(req.getInputStream(),
+					new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
 			Object msgIdObj = body.get("msgId");
 			Object emojiObj = body.get("emoji");
 			if (msgIdObj == null || emojiObj == null) {
@@ -198,7 +199,8 @@ public class MessageServlet extends HttpServlet {
 				resp.getWriter().write("{\"message\":\"Solo chats grupales\"}");
 				return;
 			}
-			Map<String, Object> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			Map<String, Object> body = objectMapper.readValue(req.getInputStream(),
+					new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
 			Object uidObj = body.get("usuarioId");
 			if (uidObj == null) {
 				resp.setStatus(400);

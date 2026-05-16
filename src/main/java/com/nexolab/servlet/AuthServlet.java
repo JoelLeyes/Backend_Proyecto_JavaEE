@@ -5,6 +5,7 @@ import com.nexolab.dao.UserDAO;
 import com.nexolab.service.AuthService;
 import com.nexolab.service.EmailService;
 import com.nexolab.model.Usuario;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -41,7 +42,7 @@ public class AuthServlet extends HttpServlet {
 
 	private void handleRegister(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		try {
-			Map<String, String> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			Map<String, String> body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, String>>() {});
 
 			String nombre = body.get("nombre");
 			String apellido = body.get("apellido");
@@ -89,7 +90,7 @@ public class AuthServlet extends HttpServlet {
 
 	private void handleLogin(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		try {
-			Map<String, String> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			Map<String, String> body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, String>>() {});
 			String token = authService.login(body.get("email"), body.get("password"));
 			Usuario user = authService.getUserFromToken(token);
 
@@ -119,7 +120,7 @@ public class AuthServlet extends HttpServlet {
 	private void handleForgotPassword(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		Map<String, String> body;
 		try {
-			body = objectMapper.readValue(req.getInputStream(), Map.class);
+			body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, String>>() {});
 		} catch (Exception e) {
 			resp.setStatus(400);
 			resp.getWriter().write("{\"message\":\"Cuerpo JSON inválido\"}");
