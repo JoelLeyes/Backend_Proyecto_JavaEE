@@ -16,8 +16,25 @@ import java.io.OutputStream;
  * Servlet que sirve los archivos guardados en la carpeta "uploads"
  * Ej: GET /uploads/abc123_foto.jpg
  */
-@WebServlet("/uploads/*")
+@WebServlet(urlPatterns = "/uploads/*", loadOnStartup = 1)
 public class FileDownloadServlet extends HttpServlet {
+
+    @Override
+    public void init() throws ServletException {
+        // Misma lógica que MessageServlet: UPLOAD_DIR env var tiene prioridad
+        String envDir = System.getenv("UPLOAD_DIR");
+        if (envDir != null && !envDir.isBlank()) {
+            FileStorageUtil.setUploadDir(envDir.trim());
+        } else {
+            String realPath = getServletContext().getRealPath("/uploads");
+            if (realPath != null) {
+                FileStorageUtil.setUploadDir(realPath);
+            }
+        }
+        String contextPath = getServletContext().getContextPath();
+        FileStorageUtil.setUrlPrefix(contextPath + "/uploads/");
+        System.out.println("[NexoLab] FileDownloadServlet inicializado. uploadDir=" + FileStorageUtil.getUploadDir());
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
