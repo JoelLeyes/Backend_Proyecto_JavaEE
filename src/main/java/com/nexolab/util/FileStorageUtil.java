@@ -12,8 +12,22 @@ import java.util.UUID;
  * Utilidad para guardar archivos en disco
  */
 public class FileStorageUtil {
-    private static final String CARPETA_SUBIDAS = "uploads";
     private static final long TAMAÑO_MAXIMO = 5 * 1024 * 1024; // 5 MB
+
+    // Inicializado por MessageServlet.init() con getRealPath("/uploads")
+    private static volatile String uploadDir = null;
+
+    public static void setUploadDir(String dir) {
+        uploadDir = dir;
+    }
+
+    public static String getUploadDir() {
+        if (uploadDir != null) return uploadDir;
+        // Fallback: env var o directorio temp del sistema
+        String envDir = System.getenv("UPLOAD_DIR");
+        if (envDir != null && !envDir.isBlank()) return envDir;
+        return System.getProperty("java.io.tmpdir") + File.separator + "nexolab-uploads";
+    }
 
     // Extensiones permitidas: documentos e imágenes
     private static final Set<String> EXTENSIONES_PERMITIDAS = new HashSet<>(Arrays.asList(
@@ -55,7 +69,7 @@ public class FileStorageUtil {
 
         try {
             // Crear carpeta "uploads" si no existe
-            String rutaCarpeta = new File(CARPETA_SUBIDAS).getAbsolutePath();
+            String rutaCarpeta = getUploadDir();
             File carpeta = new File(rutaCarpeta);
             if (!carpeta.exists()) {
                 if (!carpeta.mkdirs()) {

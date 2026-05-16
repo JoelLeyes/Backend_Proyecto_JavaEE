@@ -48,6 +48,14 @@ public class MessageServlet extends HttpServlet {
 	private final TypingStore    typingStore    = TypingStore.getInstance();
 
 	@Override
+	public void init() throws ServletException {
+		String realPath = getServletContext().getRealPath("/uploads");
+		if (realPath != null) {
+			com.nexolab.util.FileStorageUtil.setUploadDir(realPath);
+		}
+	}
+
+	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		RequestContext ctx = authorizeAndResolveChat(req, resp);
 		if (ctx == null) return;

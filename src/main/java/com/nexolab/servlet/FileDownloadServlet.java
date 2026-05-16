@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import com.nexolab.util.FileStorageUtil;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -38,8 +39,7 @@ public class FileDownloadServlet extends HttpServlet {
                 return;
             }
             
-            // Usar la misma ruta que FileStorageUtil: carpeta "uploads" con ruta absoluta
-            String rutaCarpeta = new java.io.File("uploads").getAbsolutePath();
+            String rutaCarpeta = FileStorageUtil.getUploadDir();
             File archivo = new File(rutaCarpeta + File.separator + nombreArchivo);
 
             // Validar que existe, es un archivo y está dentro de la carpeta uploads (seguridad)
