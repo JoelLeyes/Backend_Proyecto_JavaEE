@@ -32,6 +32,10 @@ public class Mensaje {
     @JoinColumn(name = "chat_id", nullable = false)
     private Chat chat;
 
+    @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY, optional = true)
+    @JoinColumn(name = "responde_a_id")
+    private Mensaje respondeA;
+
     public Mensaje() {}
 
     public Mensaje(Date fechaEnviado, String contenido, Chat chat) {
@@ -56,11 +60,14 @@ public class Mensaje {
         }
     }
 
+    public void setRespondeA(Mensaje respondeA) { this.respondeA = respondeA; }
+
     public Long getIdMensaje() { return idMensaje; }
     public Date getFechaEnviado() { return fechaEnviado; }
     public String getContenido() { return contenido; }
     public Chat getChat() { return chat; }
     public Set<Adjunto> getAdjuntos() { return adjuntos; }
     public List<EstadoMensaje> getEstados() { return estados; }
+    public Mensaje getRespondeA() { return respondeA; }
 
 }

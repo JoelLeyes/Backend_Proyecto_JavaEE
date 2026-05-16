@@ -22,8 +22,8 @@ public class ChatService {
 
 	public List<Chat> obtenerChatsDelUsuario(Usuario usuario) {
 		List<Chat> chats = chatDAO.findByUsuario(usuario);
+		Long userId = usuario.getIdUsuario();
 
-		// Completar campos transient para el frontend.
 		for (Chat c : chats) {
 			Mensaje ultimo = c.getMensajes().stream()
 					.max(Comparator.comparing(Mensaje::getFechaEnviado))
@@ -33,12 +33,18 @@ public class ChatService {
 				LocalDateTime ldt = LocalDateTime.ofInstant(ultimo.getFechaEnviado().toInstant(), ZoneId.systemDefault());
 				c.setHoraUltimoMensaje(ldt);
 			}
-			if (c.getMensajesSinLeer() == null) {
-				c.setMensajesSinLeer(0);
-			}
+			// Calcular mensajes sin leer usando ultima_lectura del Participa del usuario
+			Participa participa = chatDAO.findParticipacion(c.getIdChat(), userId);
+			java.util.Date ultimaLectura = participa != null ? participa.getUltimaLectura() : null;
+			long unread = chatDAO.countUnread(c.getIdChat(), userId, ultimaLectura);
+			c.setMensajesSinLeer((int) Math.min(unread, 99));
 		}
 
 		return chats;
+	}
+
+	public void markAsRead(Long chatId, Long userId) {
+		chatDAO.updateUltimaLectura(chatId, userId, new java.util.Date());
 	}
 
 	public Chat obtenerChatPorId(Long id) {

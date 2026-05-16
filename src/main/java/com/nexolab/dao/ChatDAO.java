@@ -127,6 +127,38 @@ public class ChatDAO {
 		em.close();
 	}
 
+	public void updateUltimaLectura(Long chatId, Long userId, java.util.Date fecha) {
+		EntityManager em = emf.createEntityManager();
+		em.getTransaction().begin();
+		em.createQuery(
+				"UPDATE Participa p SET p.ultimaLectura = :fecha " +
+				"WHERE p.chat.idChat = :chatId AND p.usuario.idUsuario = :userId")
+			.setParameter("fecha", fecha)
+			.setParameter("chatId", chatId)
+			.setParameter("userId", userId)
+			.executeUpdate();
+		em.getTransaction().commit();
+		em.close();
+	}
+
+	public long countUnread(Long chatId, Long userId, java.util.Date since) {
+		EntityManager em = emf.createEntityManager();
+		if (since == null) since = new java.util.Date(0);
+		Long count = em.createQuery(
+				"SELECT COUNT(m) FROM Mensaje m " +
+				"JOIN m.estados e " +
+				"WHERE m.chat.idChat = :chatId " +
+				"AND e.usuario.idUsuario = :userId " +
+				"AND e.estado = com.nexolab.model.Estado.ENTREGADO " +
+				"AND m.fechaEnviado > :since", Long.class)
+			.setParameter("chatId", chatId)
+			.setParameter("userId", userId)
+			.setParameter("since", since)
+			.getSingleResult();
+		em.close();
+		return count == null ? 0 : count;
+	}
+
 	public void updateNombre(Long chatId, String nombre) {
 		EntityManager em = emf.createEntityManager();
 		em.getTransaction().begin();

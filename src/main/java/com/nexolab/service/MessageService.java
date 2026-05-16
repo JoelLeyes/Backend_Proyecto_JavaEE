@@ -16,6 +16,10 @@ public class MessageService {
 	private final PushNotificationService pushNotificationService = new PushNotificationService();
 
 	public void enviarMensaje(Chat chat, Usuario emisor, String contenido) {
+		enviarMensaje(chat, emisor, contenido, null);
+	}
+
+	public void enviarMensaje(Chat chat, Usuario emisor, String contenido, Long respondaMensajeId) {
 		if (chat == null) {
 			throw new IllegalArgumentException("Chat is required");
 		}
@@ -30,6 +34,11 @@ public class MessageService {
 		mensaje.setChat(chat);
 		mensaje.setContenido(contenido);
 		mensaje.setFechaEnviado(new Date());
+
+		if (respondaMensajeId != null) {
+			Mensaje ra = messageDAO.findById(respondaMensajeId);
+			if (ra != null) mensaje.setRespondeA(ra);
+		}
 
 		Date ahora = new Date();
 		if (chat.getParticipantes() != null && !chat.getParticipantes().isEmpty()) {
@@ -132,6 +141,10 @@ public class MessageService {
 	 * @param archivos Lista de archivos a adjuntar
 	 */
 	public void enviarMensajeConAdjuntos(Chat chat, Usuario emisor, String contenido, java.util.List<Part> archivos) {
+		enviarMensajeConAdjuntos(chat, emisor, contenido, archivos, null);
+	}
+
+	public void enviarMensajeConAdjuntos(Chat chat, Usuario emisor, String contenido, java.util.List<Part> archivos, Long respondaMensajeId) {
 		if (chat == null) {
 			throw new IllegalArgumentException("Chat requerido");
 		}
@@ -148,6 +161,11 @@ public class MessageService {
 		mensaje.setChat(chat);
 		mensaje.setContenido(contenido);
 		mensaje.setFechaEnviado(new Date());
+
+		if (respondaMensajeId != null) {
+			Mensaje ra = messageDAO.findById(respondaMensajeId);
+			if (ra != null) mensaje.setRespondeA(ra);
+		}
 
 		// Guardar TODOS los archivos adjuntos
 		if (archivos != null && !archivos.isEmpty()) {
