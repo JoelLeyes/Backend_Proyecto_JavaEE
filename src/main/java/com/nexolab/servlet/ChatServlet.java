@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@WebServlet("/chats/*")
+@WebServlet("/chats")
 public class ChatServlet extends HttpServlet {
 	private final ChatService chatService = new ChatService();
 	private final AuthService authService = new AuthService();
@@ -63,11 +63,6 @@ public class ChatServlet extends HttpServlet {
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-		String pathInfo = req.getPathInfo();
-		if (pathInfo != null && !pathInfo.equals("/")) {
-			resp.setStatus(404);
-			return;
-		}
 		String token = req.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
 			resp.setStatus(401);
@@ -209,51 +204,4 @@ public class ChatServlet extends HttpServlet {
 		resp.getWriter().write(objectMapper.writeValueAsString(response));
 	}
 
-	@Override
-	protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-		resp.setContentType("application/json");
-		String token = req.getHeader("Authorization");
-		if (token == null || !token.startsWith("Bearer ")) { resp.setStatus(401); return; }
-		Usuario usuario = authService.getUserFromToken(token.substring(7));
-		if (usuario == null) { resp.setStatus(401); return; }
-
-		String pathInfo = req.getPathInfo();
-		if (pathInfo == null || pathInfo.equals("/")) { resp.setStatus(404); return; }
-		String[] parts = pathInfo.split("/");
-		if (parts.length < 2) { resp.setStatus(404); return; }
-
-		Long chatId;
-		try { chatId = Long.parseLong(parts[1]); }
-		catch (NumberFormatException e) { resp.setStatus(400); return; }
-
-		Map<String, Object> body;
-		try {
-			body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, Object>>() {});
-		} catch (Exception e) {
-			resp.setStatus(400);
-			resp.getWriter().write("{\"message\":\"Cuerpo JSON inválido\"}");
-			return;
-		}
-
-		String nombre = firstNonBlank(body.get("nombre"), body.get("name"));
-		if (nombre == null || nombre.isBlank()) {
-			resp.setStatus(400);
-			resp.getWriter().write("{\"message\":\"nombre requerido\"}");
-			return;
-		}
-
-		try {
-			chatService.renombrarGrupo(chatId, usuario, nombre.trim());
-		} catch (SecurityException e) {
-			resp.setStatus(403);
-			resp.getWriter().write("{\"message\":\"" + e.getMessage() + "\"}");
-			return;
-		} catch (Exception e) {
-			resp.setStatus(500);
-			resp.getWriter().write("{\"message\":\"Error al renombrar el grupo\"}");
-			return;
-		}
-
-		resp.getWriter().write("{\"nombre\":\"" + nombre.trim() + "\"}");
-	}
 }
