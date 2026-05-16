@@ -206,9 +206,27 @@ public class MessageServlet extends HttpServlet {
 				resp.getWriter().write("{\"message\":\"Solo chats grupales\"}");
 				return;
 			}
-			chatService.abandonarChat(ctx.chat.getIdChat(), ctx.usuario);
-			resp.setStatus(200);
-			resp.getWriter().write("{\"message\":\"Has abandonado el grupo\"}");
+			String kickUserIdStr = req.getParameter("kickUserId");
+			if (kickUserIdStr != null) {
+				Long kickUserId;
+				try { kickUserId = Long.parseLong(kickUserIdStr); }
+				catch (NumberFormatException e) { resp.setStatus(400); return; }
+				try {
+					chatService.expulsarParticipante(ctx.chat.getIdChat(), ctx.usuario, kickUserId);
+					resp.setStatus(200);
+					resp.getWriter().write("{\"message\":\"Participante expulsado\"}");
+				} catch (SecurityException e) {
+					resp.setStatus(403);
+					resp.getWriter().write("{\"message\":\"" + e.getMessage() + "\"}");
+				} catch (IllegalArgumentException e) {
+					resp.setStatus(400);
+					resp.getWriter().write("{\"message\":\"" + e.getMessage() + "\"}");
+				}
+			} else {
+				chatService.abandonarChat(ctx.chat.getIdChat(), ctx.usuario);
+				resp.setStatus(200);
+				resp.getWriter().write("{\"message\":\"Has abandonado el grupo\"}");
+			}
 			return;
 		}
 

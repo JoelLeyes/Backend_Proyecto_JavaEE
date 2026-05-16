@@ -126,4 +126,13 @@ public class ChatDAO {
 		em.getTransaction().commit();
 		em.close();
 	}
+
+	public void updateNombre(Long chatId, String nombre) {
+		EntityManager em = emf.createEntityManager();
+		em.getTransaction().begin();
+		Chat chat = em.find(Chat.class, chatId);
+		chat.setNombreChat(nombre);
+		em.getTransaction().commit();
+		em.close();
+	}
 }
