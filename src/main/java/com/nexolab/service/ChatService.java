@@ -84,6 +84,23 @@ public class ChatService {
 		chatDAO.removeParticipante(chatId, usuario.getIdUsuario());
 	}
 
+	public void expulsarParticipante(Long chatId, Usuario admin, Long usuarioId) {
+		if (!esAdmin(chatId, admin)) {
+			throw new SecurityException("Solo el administrador puede expulsar participantes");
+		}
+		if (admin.getIdUsuario().equals(usuarioId)) {
+			throw new IllegalArgumentException("El administrador no puede expulsarse a sí mismo");
+		}
+		chatDAO.removeParticipante(chatId, usuarioId);
+	}
+
+	public void renombrarGrupo(Long chatId, Usuario usuario, String nuevoNombre) {
+		if (!esAdmin(chatId, usuario)) {
+			throw new SecurityException("Solo el administrador puede renombrar el grupo");
+		}
+		chatDAO.updateNombre(chatId, nuevoNombre);
+	}
+
 	public Chat crearChatPrivado(Usuario creador, Usuario otro) {
 		Chat existing = chatDAO.findPrivateChat(creador.getIdUsuario(), otro.getIdUsuario());
 		if (existing != null) return existing;
