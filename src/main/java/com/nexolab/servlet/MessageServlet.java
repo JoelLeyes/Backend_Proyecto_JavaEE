@@ -2,17 +2,20 @@ package com.nexolab.servlet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexolab.dao.MessageDAO;
+import com.nexolab.dao.ReaccionDAO;
 import com.nexolab.dao.UserDAO;
 import com.nexolab.model.Adjunto;
 import com.nexolab.model.Chat;
 import com.nexolab.model.EstadoMensaje;
 import com.nexolab.model.Mensaje;
 import com.nexolab.model.Participa;
+import com.nexolab.model.Reaccion;
 import com.nexolab.model.TipoChat;
 import com.nexolab.model.Usuario;
 import com.nexolab.service.AuthService;
 import com.nexolab.service.ChatService;
 import com.nexolab.service.MessageService;
+import com.nexolab.service.TypingStore;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
@@ -36,11 +39,13 @@ import java.util.stream.Collectors;
 @WebServlet("/chats/*")
 public class MessageServlet extends HttpServlet {
 	private final MessageService messageService = new MessageService();
-	private final MessageDAO messageDAO = new MessageDAO();
-	private final ChatService chatService = new ChatService();
-	private final AuthService authService = new AuthService();
-	private final UserDAO userDAO = new UserDAO();
-	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final MessageDAO     messageDAO     = new MessageDAO();
+	private final ReaccionDAO    reaccionDAO    = new ReaccionDAO();
+	private final ChatService    chatService    = new ChatService();
+	private final AuthService    authService    = new AuthService();
+	private final UserDAO        userDAO        = new UserDAO();
+	private final ObjectMapper   objectMapper   = new ObjectMapper();
+	private final TypingStore    typingStore    = TypingStore.getInstance();
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -48,6 +53,18 @@ public class MessageServlet extends HttpServlet {
 		if (ctx == null) return;
 
 		resp.setContentType("application/json");
+
+		if ("typing".equals(ctx.subPath)) {
+			List<Map<String, Object>> typers = typingStore.getTyping(
+					ctx.chat.getIdChat(), ctx.usuario.getIdUsuario())
+				.stream().map(e -> {
+					Map<String, Object> m = new HashMap<>();
+					m.put("nombre", e.nombre());
+					return m;
+				}).collect(Collectors.toList());
+			resp.getWriter().write(objectMapper.writeValueAsString(typers));
+			return;
+		}
 
 		if ("participantes".equals(ctx.subPath)) {
 			List<Participa> participaciones = chatService.obtenerParticipaciones(ctx.chat.getIdChat());
@@ -74,6 +91,10 @@ public class MessageServlet extends HttpServlet {
 			Date since = parseSince(req.getParameter("since"));
 			messages = messageService.obtenerMensajesDesdeFecha(ctx.chat, since);
 		}
+
+		List<Long> msgIds = messages.stream().map(Mensaje::getIdMensaje).collect(Collectors.toList());
+		Map<Long, List<Reaccion>> reaccionesPorMensaje = reaccionDAO.findByMensajeIds(msgIds);
+		Long myId = ctx.usuario.getIdUsuario();
 
 		List<Map<String, Object>> msgList = messages.stream().map(m -> {
 			Map<String, Object> map = new HashMap<>();
@@ -114,6 +135,24 @@ public class MessageServlet extends HttpServlet {
 					.collect(Collectors.toList());
 			map.put("estados", estados);
 
+			// Reacciones agrupadas por emoji con conteo y flag "mine"
+			List<Reaccion> rList = reaccionesPorMensaje.getOrDefault(m.getIdMensaje(), List.of());
+			Map<String, long[]> grouped = new java.util.LinkedHashMap<>();
+			// Agrupar por emoji
+			for (Reaccion r : rList) {
+				grouped.computeIfAbsent(r.getEmoji(), k -> new long[]{0, 0});
+				grouped.get(r.getEmoji())[0]++;
+				if (r.getUsuario().getIdUsuario().equals(myId)) grouped.get(r.getEmoji())[1] = 1;
+			}
+			List<Map<String, Object>> reacciones = grouped.entrySet().stream().map(e -> {
+				Map<String, Object> rm = new HashMap<>();
+				rm.put("emoji", e.getKey());
+				rm.put("count", e.getValue()[0]);
+				rm.put("mine",  e.getValue()[1] == 1);
+				return rm;
+			}).collect(Collectors.toList());
+			map.put("reacciones", reacciones);
+
 			return map;
 		}).collect(Collectors.toList());
 
@@ -126,6 +165,32 @@ public class MessageServlet extends HttpServlet {
 		if (ctx == null) return;
 
 		resp.setContentType("application/json");
+
+		if ("typing".equals(ctx.subPath)) {
+			String nombre = (ctx.usuario.getNombre() + " " + ctx.usuario.getApellido()).trim();
+			typingStore.markTyping(ctx.chat.getIdChat(), ctx.usuario.getIdUsuario(), nombre);
+			resp.setStatus(200);
+			return;
+		}
+
+		if ("reacciones".equals(ctx.subPath)) {
+			Map<String, Object> body = objectMapper.readValue(req.getInputStream(), Map.class);
+			Object msgIdObj = body.get("msgId");
+			Object emojiObj = body.get("emoji");
+			if (msgIdObj == null || emojiObj == null) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"msgId y emoji requeridos\"}");
+				return;
+			}
+			Long msgId;
+			try { msgId = Long.parseLong(msgIdObj.toString()); }
+			catch (NumberFormatException e) { resp.setStatus(400); return; }
+			String emoji = emojiObj.toString().trim();
+			boolean added = reaccionDAO.toggle(msgId, ctx.usuario.getIdUsuario(), emoji);
+			resp.setStatus(200);
+			resp.getWriter().write("{\"added\":" + added + "}");
+			return;
+		}
 
 		if ("participantes".equals(ctx.subPath)) {
 			if (ctx.chat.getTipoChat() != TipoChat.GRUPAL) {
@@ -194,6 +259,41 @@ public class MessageServlet extends HttpServlet {
 	}
 
 	@Override
+	protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		RequestContext ctx = authorizeAndResolveChat(req, resp);
+		if (ctx == null) return;
+
+		resp.setContentType("application/json");
+
+		if ("nombre".equals(ctx.subPath)) {
+			if (ctx.chat.getTipoChat() != TipoChat.GRUPAL) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"Solo chats grupales\"}");
+				return;
+			}
+			Map<String, Object> body = objectMapper.readValue(req.getInputStream(),
+					new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+			Object nombreObj = body.get("nombre");
+			if (nombreObj == null || nombreObj.toString().isBlank()) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"nombre requerido\"}");
+				return;
+			}
+			String nombre = nombreObj.toString().trim();
+			try {
+				chatService.renombrarGrupo(ctx.chat.getIdChat(), ctx.usuario, nombre);
+				resp.getWriter().write("{\"nombre\":\"" + nombre + "\"}");
+			} catch (SecurityException e) {
+				resp.setStatus(403);
+				resp.getWriter().write("{\"message\":\"" + e.getMessage() + "\"}");
+			}
+			return;
+		}
+
+		resp.setStatus(404);
+	}
+
+	@Override
 	protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		RequestContext ctx = authorizeAndResolveChat(req, resp);
 		if (ctx == null) return;
@@ -254,7 +354,7 @@ public class MessageServlet extends HttpServlet {
 			return null;
 		}
 		String subPath = parts[2];
-		if (!"messages".equals(subPath) && !"participantes".equals(subPath)) {
+		if (!java.util.Set.of("messages","participantes","nombre","typing","reacciones").contains(subPath)) {
 			resp.setStatus(404);
 			return null;
 		}
