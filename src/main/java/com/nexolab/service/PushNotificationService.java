@@ -23,7 +23,12 @@ public class PushNotificationService {
     private final String serverKey = System.getenv("FCM_SERVER_KEY");
 
     public void notifyMessage(Chat chat, Usuario sender, Mensaje message) {
-        if (chat == null || sender == null || sender.getIdUsuario() == null || serverKey == null || serverKey.isBlank()) {
+        if (chat == null || sender == null || sender.getIdUsuario() == null) {
+            return;
+        }
+        
+        if (serverKey == null || serverKey.isBlank()) {
+            System.err.println("FCM_SERVER_KEY no está configurado. Las notificaciones push no funcionarán.");
             return;
         }
 
@@ -57,7 +62,7 @@ public class PushNotificationService {
             payload.put("registration_ids", new ArrayList<>(tokens));
         }
 
-        send(payload);
+        send(payload, tokens.size());
     }
 
     private Map<String, Object> buildNotification(Chat chat, Usuario sender, Mensaje message) {
@@ -71,8 +76,10 @@ public class PushNotificationService {
     private Map<String, Object> buildData(Chat chat, Usuario sender, Mensaje message) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("chatId", chat.getIdChat());
+        data.put("chatName", chat.getNombreChat() == null ? "NexoLab" : chat.getNombreChat());
         data.put("senderId", sender.getIdUsuario());
         data.put("messageId", message == null ? null : message.getIdMensaje());
+        data.put("unreadCount", "1");
         return data;
     }
 
@@ -97,7 +104,7 @@ public class PushNotificationService {
         return content.length() > 140 ? content.substring(0, 140).trim() + "..." : content;
     }
 
-    private void send(Map<String, Object> payload) {
+    private void send(Map<String, Object> payload, int tokenCount) {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(FCM_ENDPOINT);
@@ -113,8 +120,10 @@ public class PushNotificationService {
             }
 
             int status = connection.getResponseCode();
-            if (status < 200 || status >= 300) {
-                System.err.println("FCM respondió con estado " + status);
+            if (status >= 200 && status < 300) {
+                System.out.println("Notificación FCM enviada exitosamente a " + tokenCount + " dispositivo(s).");
+            } else {
+                System.err.println("FCM respondió con estado " + status + " al enviar a " + tokenCount + " dispositivo(s).");
             }
         } catch (IOException e) {
             System.err.println("No se pudo enviar la notificación push: " + e.getMessage());
