@@ -80,9 +80,32 @@ jobs:
               aws ec2 revoke-security-group-ingress --group-id "${sg_id}" --security-group-rule-ids ${revoke_ids}
             fi
 
-            perm="IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=${cidr},Description='AUTO-SSH GitHub Actions'}]"
-            if ! aws ec2 authorize-security-group-ingress --group-id "${sg_id}" --ip-permissions "${perm}"; then
-              echo "La regla quizá ya existe en ${sg_id} para ${cidr}"
+            perm_json="$(CIDR="${cidr}" python3 - <<'PY'
+          import json, os
+          cidr = os.environ["CIDR"]
+          print(json.dumps([
+              {
+                  "IpProtocol": "tcp",
+                  "FromPort": 22,
+                  "ToPort": 22,
+                  "IpRanges": [
+                      {"CidrIp": cidr, "Description": "AUTO-SSH GitHub Actions"}
+                  ],
+              }
+          ]))
+          PY
+            )"
+
+            if out="$(aws ec2 authorize-security-group-ingress --group-id "${sg_id}" --ip-permissions "${perm_json}" 2>&1)"; then
+              echo "Regla SSH autorizada en ${sg_id} para ${cidr}"
+            else
+              rc=$?
+              if echo "${out}" | grep -q "InvalidPermission.Duplicate"; then
+                echo "La regla ya existía en ${sg_id} para ${cidr}"
+              else
+                echo "${out}"
+                exit "${rc}"
+              fi
             fi
           done <<< "${group_ids}"
 
@@ -104,7 +127,7 @@ jobs:
 
       - name: Write EC2 private key
         run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
+          printf '%s' "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > key.pem
           chmod 600 key.pem
 
       - name: Trigger remote deploy (pull + up)
