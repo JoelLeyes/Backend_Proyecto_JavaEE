@@ -11,6 +11,7 @@ env:
   EC2_HOST: 44.195.111.17
   EC2_USER: ec2-user
   EC2_APP_DIR: /home/ec2-user/app
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   deploy:
@@ -38,6 +39,8 @@ jobs:
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          mask-password: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
