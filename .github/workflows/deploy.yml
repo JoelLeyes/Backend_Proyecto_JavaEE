@@ -42,14 +42,12 @@ jobs:
             exit 1
           fi
 
-            group_ids="$(INSTANCE_JSON="${instance_json}" python3 - <<'PY'
-import json, os
-data = json.loads(os.environ['INSTANCE_JSON'])
-if isinstance(data, list) and data:
-    data = data[0]
-for sg in data.get('SecurityGroups', []):
-    print(sg['GroupId'])
-PY
+          group_ids="$(INSTANCE_JSON="${instance_json}" python3 - <<'PY'
+          import json, os
+          data = json.loads(os.environ["INSTANCE_JSON"])
+          data = data[0] if isinstance(data, list) and data else data
+          print("\n".join([sg["GroupId"] for sg in data.get("SecurityGroups", [])]))
+          PY
           )"
 
           if [ -z "${group_ids}" ]; then
@@ -63,16 +61,19 @@ PY
 
             rules_json="$(aws ec2 describe-security-group-rules --filters "Name=group-id,Values=${sg_id}" --query 'SecurityGroupRules[?IsEgress==`false` && IpProtocol==`tcp` && FromPort==`22` && ToPort==`22`].{Id:SecurityGroupRuleId,Cidr:CidrIpv4,Desc:Description}' --output json || true)"
             revoke_ids="$(RULES_JSON="${rules_json}" KEEP_CIDR="${cidr}" python3 - <<'PY'
-import json, os
-rules = json.loads(os.environ.get('RULES_JSON') or '[]')
-keep = os.environ['KEEP_CIDR']
-ids = []
-for r in rules:
-    desc = r.get('Desc') or ''
-    if desc.startswith('AUTO-SSH') and r.get('Cidr') and r.get('Cidr') != keep and r.get('Id'):
-        ids.append(r['Id'])
-print(' '.join(ids))
-PY
+          import json, os
+          rules = json.loads(os.environ.get("RULES_JSON") or "[]")
+          keep = os.environ["KEEP_CIDR"]
+          ids = [
+              r.get("Id")
+              for r in rules
+              if (r.get("Desc") or "").startswith("AUTO-SSH")
+              and r.get("Cidr")
+              and r.get("Cidr") != keep
+              and r.get("Id")
+            ]
+          print(" ".join(ids))
+          PY
             )"
 
             if [ -n "${revoke_ids}" ]; then
