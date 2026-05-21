@@ -4,7 +4,7 @@ import com.nexolab.dao.ChatDAO;
 import com.nexolab.model.Chat;
 import com.nexolab.model.Usuario;
 import java.util.List;
-
+// Servicio para manejar la lógica de negocio relacionada con los chats
 public class ChatService {
     private ChatDAO chatDAO = new ChatDAO();
 
