@@ -126,10 +126,33 @@ jobs:
           tags: ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Write EC2 private key
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          printf '%s' "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > key.pem
+          set -euo pipefail
+          umask 077
+          python3 - <<'PY' > key.pem
+          import os, sys, base64, binascii
+
+          secret = os.environ.get("EC2_SSH_KEY") or ""
+          if not secret.strip():
+            sys.stderr.write("EC2_SSH_KEY está vacío\n")
+            sys.exit(1)
+
+          if "BEGIN" in secret:
+            # Soporta PEM multilinea y PEM en una sola línea con \n literales.
+            sys.stdout.write(secret.replace("\\n", "\n").replace("\r", ""))
+          else:
+            # Permite guardar el PEM como base64 en el mismo secret.
+            try:
+              sys.stdout.buffer.write(base64.b64decode(secret))
+            except binascii.Error:
+              sys.stderr.write("EC2_SSH_KEY no parece ser PEM ni base64 válido\n")
+              sys.exit(1)
+          PY
           chmod 600 key.pem
+          ssh-keygen -y -f key.pem > /dev/null
 
       - name: Trigger remote deploy (pull + up)
         run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "cd ${EC2_APP_DIR} && docker compose pull && docker compose up -d --pull always --force-recreate"
+          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "cd ${EC2_APP_DIR} && docker compose pull && docker compose up -d --pull always --force-recreate"
