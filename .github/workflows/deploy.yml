@@ -11,6 +11,7 @@ env:
   EC2_HOST: 44.195.111.17
   EC2_USER: ec2-user
   EC2_APP_DIR: /home/ec2-user/app
+  JWT_SECRET: ${{ secrets.JWT_SECRET }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
@@ -155,4 +156,12 @@ jobs:
 
       - name: Trigger remote deploy (pull + up)
         run: |
-          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "cd ${EC2_APP_DIR} && docker compose pull && docker compose up -d --pull always --force-recreate"
+          if [ -z "${JWT_SECRET}" ]; then
+            echo "JWT_SECRET is empty. Add it as a GitHub Actions secret before deploying."
+            exit 1
+          fi
+
+          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "mkdir -p ${EC2_APP_DIR} && cat > ${EC2_APP_DIR}/.env <<'EOF'
+JWT_SECRET=${JWT_SECRET}
+EOF
+cd ${EC2_APP_DIR} && docker compose pull && docker compose up -d --pull always --force-recreate"
