@@ -161,7 +161,4 @@ jobs:
             exit 1
           fi
 
-          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "mkdir -p ${EC2_APP_DIR} && cat > ${EC2_APP_DIR}/.env <<'EOF'
-JWT_SECRET=${JWT_SECRET}
-EOF
-cd ${EC2_APP_DIR} && docker compose pull && docker compose up -d --pull always --force-recreate"
+          printf 'JWT_SECRET=%s\n' "${JWT_SECRET}" | ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "mkdir -p ${EC2_APP_DIR} && cat > ${EC2_APP_DIR}/.env && cd ${EC2_APP_DIR} && docker compose pull && docker compose up -d --pull always --force-recreate"
