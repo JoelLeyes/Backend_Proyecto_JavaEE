@@ -78,7 +78,17 @@ jobs:
             )"
 
             if [ -n "${revoke_ids}" ]; then
-              aws ec2 revoke-security-group-ingress --group-id "${sg_id}" --security-group-rule-ids ${revoke_ids}
+              if revoke_out="$(aws ec2 revoke-security-group-ingress --group-id "${sg_id}" --security-group-rule-ids ${revoke_ids} 2>&1)"; then
+                echo "Reglas viejas revocadas en ${sg_id}"
+              else
+                rc=$?
+                if echo "${revoke_out}" | grep -q "InvalidSecurityGroupRuleId.NotFound"; then
+                  echo "Alguna regla ya no existía en ${sg_id}; continúo"
+                else
+                  echo "${revoke_out}"
+                  exit "${rc}"
+                fi
+              fi
             fi
 
             perm_json="$(CIDR="${cidr}" python3 - <<'PY'
