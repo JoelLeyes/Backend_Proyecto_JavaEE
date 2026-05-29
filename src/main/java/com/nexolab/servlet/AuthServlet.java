@@ -93,14 +93,15 @@ public class AuthServlet extends HttpServlet {
 			response.put("token", token);
 
 			Map<String, Object> userMap = new HashMap<>();
-			userMap.put("idUsuario", user.getIdUsuario());
-			userMap.put("nombre", user.getNombre());
-			userMap.put("apellido", user.getApellido());
-			userMap.put("email", user.getEmail());
-			userMap.put("cargo", user.getCargo());
-			userMap.put("sector", user.getSector() == null ? null : user.getSector().toString());
-			userMap.put("tipoEstado", user.getTipoEstado() == null ? null : user.getTipoEstado().toString());
-			userMap.put("rolSistema", user.getRolSistema() == null ? "USUARIO" : user.getRolSistema().toString());
+			userMap.put("idUsuario",     user.getIdUsuario());
+			userMap.put("nombre",        user.getNombre());
+			userMap.put("apellido",      user.getApellido());
+			userMap.put("email",         user.getEmail());
+			userMap.put("cargo",         user.getCargo());
+			userMap.put("sector",        user.getSector() == null ? null : user.getSector().toString());
+			userMap.put("tipoEstado",    user.getTipoEstado() == null ? null : user.getTipoEstado().toString());
+			userMap.put("rolSistema",    user.getRolSistema() == null ? "USUARIO" : user.getRolSistema().toString());
+			userMap.put("fotoPerfilUrl", user.getFotoPerfilUrl());
 			response.put("user", userMap);
 
 			resp.getWriter().write(objectMapper.writeValueAsString(response));
