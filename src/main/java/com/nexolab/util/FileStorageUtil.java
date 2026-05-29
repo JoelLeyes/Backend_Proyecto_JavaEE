@@ -16,8 +16,8 @@ public class FileStorageUtil {
 
     // Inicializado por MessageServlet.init() con getRealPath("/uploads")
     private static volatile String uploadDir = null;
-    // Prefijo de URL pública, ej: "/api/uploads/" — inicializado con el contextPath real
-    private static volatile String urlPrefix = "/uploads/";
+    // Prefijo de URL pública — inicializado por los servlets; default /api/uploads/ para nginx→Tomcat
+    private static volatile String urlPrefix = "/api/uploads/";
 
     public static void setUploadDir(String dir) {
         uploadDir = dir;
@@ -25,6 +25,10 @@ public class FileStorageUtil {
 
     public static void setUrlPrefix(String prefix) {
         urlPrefix = prefix;
+    }
+
+    public static String getUrlPrefix() {
+        return urlPrefix;
     }
 
     public static String getUploadDir() {

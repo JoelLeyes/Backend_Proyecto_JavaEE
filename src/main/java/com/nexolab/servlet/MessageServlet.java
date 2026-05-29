@@ -62,12 +62,16 @@ public class MessageServlet extends HttpServlet {
 			}
 		}
 
-		String contextPath = getServletContext().getContextPath();
-		com.nexolab.util.FileStorageUtil.setUrlPrefix(contextPath + "/uploads/");
+		String envPrefix = System.getenv("UPLOAD_URL_PREFIX");
+		if (envPrefix != null && !envPrefix.isBlank()) {
+			com.nexolab.util.FileStorageUtil.setUrlPrefix(envPrefix.trim());
+		} else {
+			String contextPath = getServletContext().getContextPath();
+			com.nexolab.util.FileStorageUtil.setUrlPrefix((contextPath.isEmpty() ? "/api" : contextPath) + "/uploads/");
+		}
 
-		System.out.println("[NexoLab] uploadDir  = " + com.nexolab.util.FileStorageUtil.getUploadDir());
-		System.out.println("[NexoLab] urlPrefix  = " + contextPath + "/uploads/");
-		System.out.println("[NexoLab] contextPath= " + contextPath);
+		System.out.println("[NexoLab] uploadDir = " + com.nexolab.util.FileStorageUtil.getUploadDir());
+		System.out.println("[NexoLab] urlPrefix = " + com.nexolab.util.FileStorageUtil.getUrlPrefix());
 	}
 
 	@Override

@@ -7,11 +7,14 @@ import com.nexolab.dao.UserDAO;
 import com.nexolab.model.TipoEstado;
 import com.nexolab.model.Usuario;
 import com.nexolab.service.AuthService;
+import com.nexolab.util.FileStorageUtil;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -20,11 +23,30 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @WebServlet("/usuarios/*")
+@MultipartConfig
 public class UserServlet extends HttpServlet {
 
     private final AuthService  authService  = new AuthService();
     private final UserDAO      userDAO      = new UserDAO();
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Override
+    public void init() throws ServletException {
+        String envDir = System.getenv("UPLOAD_DIR");
+        if (envDir != null && !envDir.isBlank()) {
+            FileStorageUtil.setUploadDir(envDir.trim());
+        } else {
+            String realPath = getServletContext().getRealPath("/uploads");
+            if (realPath != null) FileStorageUtil.setUploadDir(realPath);
+        }
+        String envPrefix = System.getenv("UPLOAD_URL_PREFIX");
+        if (envPrefix != null && !envPrefix.isBlank()) {
+            FileStorageUtil.setUrlPrefix(envPrefix.trim());
+        } else {
+            String contextPath = getServletContext().getContextPath();
+            FileStorageUtil.setUrlPrefix((contextPath.isEmpty() ? "/api" : contextPath) + "/uploads/");
+        }
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -61,6 +83,56 @@ public class UserServlet extends HttpServlet {
         }).collect(Collectors.toList());
 
         resp.getWriter().write(objectMapper.writeValueAsString(result));
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        resp.setContentType("application/json");
+        Usuario current = requireUser(req, resp);
+        if (current == null) return;
+
+        String path = req.getPathInfo();
+        if ("/me/foto".equals(path)) {
+            handleSubirFoto(req, resp, current);
+        } else {
+            resp.setStatus(404);
+        }
+    }
+
+    private void handleSubirFoto(HttpServletRequest req, HttpServletResponse resp, Usuario usuario)
+            throws IOException, ServletException {
+        Part foto;
+        try {
+            foto = req.getPart("foto");
+        } catch (Exception e) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"Error al leer el archivo\"}");
+            return;
+        }
+
+        if (foto == null || foto.getSize() == 0) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"No se recibió ninguna foto\"}");
+            return;
+        }
+
+        String contentType = foto.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"Solo se permiten imágenes (JPG, PNG, GIF)\"}");
+            return;
+        }
+
+        try {
+            String url = FileStorageUtil.guardarArchivo(foto);
+            usuario.setFotoPerfilUrl(url);
+            userDAO.update(usuario);
+            resp.getWriter().write(objectMapper.writeValueAsString(usuarioToMap(usuario)));
+        } catch (IOException e) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"" + e.getMessage() + "\"}");
+        }
     }
 
     @Override
@@ -220,15 +292,16 @@ public class UserServlet extends HttpServlet {
 
     private Map<String, Object> usuarioToMap(Usuario u) {
         Map<String, Object> map = new HashMap<>();
-        map.put("idUsuario",    u.getIdUsuario());
-        map.put("nombre",       u.getNombre());
-        map.put("apellido",     u.getApellido());
-        map.put("email",        u.getEmail());
-        map.put("cargo",        u.getCargo());
-        map.put("sector",       u.getSector()     == null ? null : u.getSector().toString());
-        map.put("tipoEstado",   u.getTipoEstado() == null ? null : u.getTipoEstado().toString());
-        map.put("rolSistema",   u.getRolSistema() == null ? "USUARIO" : u.getRolSistema().toString());
-        map.put("pushToken",    u.getPushToken());
+        map.put("idUsuario",     u.getIdUsuario());
+        map.put("nombre",        u.getNombre());
+        map.put("apellido",      u.getApellido());
+        map.put("email",         u.getEmail());
+        map.put("cargo",         u.getCargo());
+        map.put("sector",        u.getSector()     == null ? null : u.getSector().toString());
+        map.put("tipoEstado",    u.getTipoEstado() == null ? null : u.getTipoEstado().toString());
+        map.put("rolSistema",    u.getRolSistema() == null ? "USUARIO" : u.getRolSistema().toString());
+        map.put("pushToken",     u.getPushToken());
+        map.put("fotoPerfilUrl", u.getFotoPerfilUrl());
         return map;
     }
 

@@ -128,6 +128,39 @@ jobs:
 
           sleep 20
 
+      - name: Ensure EC2 instance is running
+        run: |
+          set -euo pipefail
+          instance_id="$(aws ec2 describe-instances \
+            --filters "Name=ip-address,Values=${EC2_HOST}" \
+            --query 'Reservations[0].Instances[0].InstanceId' \
+            --output text)"
+
+          if [ -z "${instance_id}" ] || [ "${instance_id}" = "None" ]; then
+            echo "No se encontró ninguna instancia EC2 con IP ${EC2_HOST}"
+            exit 1
+          fi
+
+          state="$(aws ec2 describe-instances \
+            --instance-ids "${instance_id}" \
+            --query 'Reservations[0].Instances[0].State.Name' \
+            --output text)"
+          echo "Instancia ${instance_id} — estado actual: ${state}"
+
+          if [ "${state}" = "stopped" ]; then
+            echo "La instancia está detenida. Iniciando..."
+            aws ec2 start-instances --instance-ids "${instance_id}"
+            aws ec2 wait instance-running --instance-ids "${instance_id}"
+            echo "Instancia en running. Esperando status checks (puede tardar ~90s)..."
+            aws ec2 wait instance-status-ok --instance-ids "${instance_id}"
+            echo "Instancia lista para recibir conexiones."
+          elif [ "${state}" = "running" ]; then
+            echo "La instancia ya está en running."
+          else
+            echo "Estado inesperado: ${state}. Abortando."
+            exit 1
+          fi
+
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
         with:
@@ -227,7 +260,7 @@ jobs:
           )"
 
           for attempt in 1 2 3 4 5; do
-            if aws ecr get-login-password --region us-east-1 | ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=10 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "set -euo pipefail
+            if aws ecr get-login-password --region us-east-1 | ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=20 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "set -euo pipefail
             docker login --username AWS --password-stdin ${ECR_REGISTRY}
             mkdir -p ${EC2_APP_DIR}
             cd ${EC2_APP_DIR}

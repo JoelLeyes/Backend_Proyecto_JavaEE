@@ -31,9 +31,14 @@ public class FileDownloadServlet extends HttpServlet {
                 FileStorageUtil.setUploadDir(realPath);
             }
         }
-        String contextPath = getServletContext().getContextPath();
-        FileStorageUtil.setUrlPrefix(contextPath + "/uploads/");
-        System.out.println("[NexoLab] FileDownloadServlet inicializado. uploadDir=" + FileStorageUtil.getUploadDir());
+        String envPrefix = System.getenv("UPLOAD_URL_PREFIX");
+        if (envPrefix != null && !envPrefix.isBlank()) {
+            FileStorageUtil.setUrlPrefix(envPrefix.trim());
+        } else {
+            String contextPath = getServletContext().getContextPath();
+            FileStorageUtil.setUrlPrefix((contextPath.isEmpty() ? "/api" : contextPath) + "/uploads/");
+        }
+        System.out.println("[NexoLab] FileDownloadServlet inicializado. uploadDir=" + FileStorageUtil.getUploadDir() + " urlPrefix=" + FileStorageUtil.getUrlPrefix());
     }
 
     @Override
