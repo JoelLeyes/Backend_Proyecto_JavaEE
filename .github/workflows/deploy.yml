@@ -42,6 +42,8 @@ jobs:
           runner_ip="$(curl -s https://checkip.amazonaws.com | tr -d '\r\n')"
           cidr="${runner_ip}/32"
           echo "Runner IP: ${cidr}"
+          echo "RUNNER_IP=${runner_ip}" >> "$GITHUB_ENV"
+          echo "RUNNER_CIDR=${cidr}" >> "$GITHUB_ENV"
 
           instance_json="$(aws ec2 describe-instances --filters "Name=ip-address,Values=${EC2_HOST}" --query 'Reservations[].Instances[].{InstanceId:InstanceId,SecurityGroups:SecurityGroups[].{GroupId:GroupId,GroupName:GroupName}}' --output json)"
           if [ "${instance_json}" = "[]" ] || [ -z "${instance_json}" ]; then
@@ -141,6 +143,8 @@ jobs:
             exit 1
           fi
 
+          echo "EC2_INSTANCE_ID=${instance_id}" >> "$GITHUB_ENV"
+
           state="$(aws ec2 describe-instances \
             --instance-ids "${instance_id}" \
             --query 'Reservations[0].Instances[0].State.Name' \
@@ -160,6 +164,24 @@ jobs:
             echo "Estado inesperado: ${state}. Abortando."
             exit 1
           fi
+
+      - name: Wait for SSH port 22
+        run: |
+          set -euo pipefail
+          echo "Probando conectividad TCP a ${EC2_HOST}:22 (runner: ${RUNNER_CIDR:-unknown})"
+          for probe in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
+            if nc -z -w 5 "${EC2_HOST}" 22; then
+              echo "SSH port is reachable"
+              exit 0
+            fi
+
+            echo "Waiting for SSH port to open... (${probe}/24)"
+            sleep 10
+          done
+
+          echo "ERROR: No se pudo alcanzar ${EC2_HOST}:22 desde el runner."
+          echo "Sugerencias: revisar NACL/route table, firewall del host (sshd/iptables), y que el Security Group tenga inbound 22 para ${RUNNER_CIDR}."
+          exit 1
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -205,6 +227,14 @@ jobs:
           chmod 600 key.pem
           ssh-keygen -y -f key.pem > /dev/null
 
+      - name: Upload docker-compose template to EC2
+        run: |
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=20 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "set -euo pipefail
+          mkdir -p ${EC2_APP_DIR}"
+
+          scp -i key.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ./deploy/docker-compose.ec2.yml ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:${{ env.EC2_APP_DIR }}/docker-compose.yml
+
       - name: Trigger remote deploy (pull + up)
         run: |
           required=(JWT_SECRET SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM UPLOAD_DIR)
@@ -214,14 +244,6 @@ jobs:
               exit 1
             fi
           done
-
-          # Subimos el compose template (sin secretos) para asegurar que exista y esté actualizado.
-          # Nota: la configuración TLS/nginx.conf y certs se mantiene en la EC2 (no se sobreescribe aquí).
-          if ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=10 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "set -euo pipefail
-          mkdir -p ${EC2_APP_DIR}
-          test -d ${EC2_APP_DIR}/deploy || true"; then
-            scp -i key.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 ./deploy/docker-compose.ec2.yml ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:${{ env.EC2_APP_DIR }}/docker-compose.yml
-          fi
 
           jwt_q="$(python3 - <<'PY'
           import os, shlex
