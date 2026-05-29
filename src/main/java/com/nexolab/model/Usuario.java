@@ -31,7 +31,7 @@ public class Usuario {
     @Column(nullable = false)
     private String cargo;
 
-    @Column(name = "foto_perfil_url")
+    @Column(name = "foto_perfil_url", columnDefinition = "TEXT")
     private String fotoPerfilUrl;
 
     @Column(name = "push_token", length = 512)

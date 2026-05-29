@@ -100,6 +100,8 @@ public class UserServlet extends HttpServlet {
         }
     }
 
+    private static final long MAX_FOTO_BYTES = 2 * 1024 * 1024; // 2 MB
+
     private void handleSubirFoto(HttpServletRequest req, HttpServletResponse resp, Usuario usuario)
             throws IOException, ServletException {
         Part foto;
@@ -124,14 +126,22 @@ public class UserServlet extends HttpServlet {
             return;
         }
 
+        if (foto.getSize() > MAX_FOTO_BYTES) {
+            resp.setStatus(400);
+            resp.getWriter().write("{\"message\":\"La imagen no puede superar los 2 MB\"}");
+            return;
+        }
+
         try {
-            String url = FileStorageUtil.guardarArchivo(foto);
-            usuario.setFotoPerfilUrl(url);
+            byte[] bytes = foto.getInputStream().readAllBytes();
+            String base64 = java.util.Base64.getEncoder().encodeToString(bytes);
+            String dataUrl = "data:" + contentType + ";base64," + base64;
+            usuario.setFotoPerfilUrl(dataUrl);
             userDAO.update(usuario);
             resp.getWriter().write(objectMapper.writeValueAsString(usuarioToMap(usuario)));
-        } catch (IOException e) {
-            resp.setStatus(400);
-            resp.getWriter().write("{\"message\":\"" + e.getMessage() + "\"}");
+        } catch (Exception e) {
+            resp.setStatus(500);
+            resp.getWriter().write("{\"message\":\"Error al procesar la imagen\"}");
         }
     }
 
