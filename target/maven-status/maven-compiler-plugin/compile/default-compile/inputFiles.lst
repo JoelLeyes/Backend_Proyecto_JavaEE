@@ -1,5 +1,6 @@
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\dao\ChatDAO.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\dao\MessageDAO.java
+C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\dao\ReaccionDAO.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\dao\UserDAO.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\listener\AdminInitializer.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\model\Adjunto.java
@@ -8,6 +9,7 @@ C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\m
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\model\EstadoMensaje.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\model\Mensaje.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\model\Participa.java
+C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\model\Reaccion.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\model\RolSistema.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\model\RolUsuario.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\model\Sector.java
@@ -18,6 +20,8 @@ C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\m
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\service\ChatService.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\service\EmailService.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\service\MessageService.java
+C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\service\PushNotificationService.java
+C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\service\TypingStore.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\servlet\AdminServlet.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\servlet\AuthServlet.java
 C:\Users\yoell\Documents\Visual Code Archivos\JAVA\Backend_Proyecto_JavaEE\src\main\java\com\nexolab\servlet\ChatServlet.java

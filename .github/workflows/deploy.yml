@@ -12,6 +12,12 @@ env:
   EC2_USER: ec2-user
   EC2_APP_DIR: /home/ec2-user/app
   JWT_SECRET: ${{ secrets.JWT_SECRET }}
+  SMTP_HOST: ${{ secrets.SMTP_HOST }}
+  SMTP_PORT: ${{ secrets.SMTP_PORT }}
+  SMTP_USER: ${{ secrets.SMTP_USER }}
+  SMTP_PASS: ${{ secrets.SMTP_PASS }}
+  SMTP_FROM: ${{ secrets.SMTP_FROM }}
+  UPLOAD_DIR: ${{ secrets.UPLOAD_DIR }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
@@ -168,21 +174,78 @@ jobs:
 
       - name: Trigger remote deploy (pull + up)
         run: |
-          if [ -z "${JWT_SECRET:-}" ]; then
-            echo "JWT_SECRET is empty. Add it as a GitHub Actions secret before deploying."
-            exit 1
+          required=(JWT_SECRET SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM UPLOAD_DIR)
+          for k in "${required[@]}"; do
+            if [ -z "${!k:-}" ]; then
+              echo "${k} is empty. Add it as a GitHub Actions secret before deploying."
+              exit 1
+            fi
+          done
+
+          # Subimos el compose template (sin secretos) para asegurar que exista y esté actualizado.
+          # Nota: la configuración TLS/nginx.conf y certs se mantiene en la EC2 (no se sobreescribe aquí).
+          if ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=10 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "set -euo pipefail
+          mkdir -p ${EC2_APP_DIR}
+          test -d ${EC2_APP_DIR}/deploy || true"; then
+            scp -i key.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 ./deploy/docker-compose.ec2.yml ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:${{ env.EC2_APP_DIR }}/docker-compose.yml
           fi
 
-          jwt_secret_b64="$(printf '%s' "${JWT_SECRET}" | base64 | tr -d '\n')"
+          jwt_q="$(python3 - <<'PY'
+          import os, shlex
+          print(shlex.quote(os.environ['JWT_SECRET']))
+          PY
+          )"
+          smtp_host_q="$(python3 - <<'PY'
+          import os, shlex
+          print(shlex.quote(os.environ['SMTP_HOST']))
+          PY
+          )"
+          smtp_port_q="$(python3 - <<'PY'
+          import os, shlex
+          print(shlex.quote(os.environ['SMTP_PORT']))
+          PY
+          )"
+          smtp_user_q="$(python3 - <<'PY'
+          import os, shlex
+          print(shlex.quote(os.environ['SMTP_USER']))
+          PY
+          )"
+          smtp_pass_q="$(python3 - <<'PY'
+          import os, shlex
+          print(shlex.quote(os.environ['SMTP_PASS']))
+          PY
+          )"
+          smtp_from_q="$(python3 - <<'PY'
+          import os, shlex
+          print(shlex.quote(os.environ['SMTP_FROM']))
+          PY
+          )"
+          upload_dir_q="$(python3 - <<'PY'
+          import os, shlex
+          print(shlex.quote(os.environ['UPLOAD_DIR']))
+          PY
+          )"
+
           for attempt in 1 2 3 4 5; do
             if aws ecr get-login-password --region us-east-1 | ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=10 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "set -euo pipefail
             docker login --username AWS --password-stdin ${ECR_REGISTRY}
             mkdir -p ${EC2_APP_DIR}
-            JWT_SECRET=\$(printf '%s' '${jwt_secret_b64}' | base64 -d)
-            printf 'JWT_SECRET=%s\n' \"\$JWT_SECRET\" > ${EC2_APP_DIR}/.env
             cd ${EC2_APP_DIR}
-            docker compose pull
-            docker compose up -d --pull always --force-recreate"; then
+            rm -f .env || true
+
+            export JWT_SECRET=${jwt_q}
+            export SMTP_HOST=${smtp_host_q}
+            export SMTP_PORT=${smtp_port_q}
+            export SMTP_USER=${smtp_user_q}
+            export SMTP_PASS=${smtp_pass_q}
+            export SMTP_FROM=${smtp_from_q}
+            export UPLOAD_DIR=${upload_dir_q}
+            export SMTP_STARTTLS=true
+            mkdir -p \"${UPLOAD_DIR}\" || true
+
+            docker compose pull backend
+            docker compose up -d --pull always --force-recreate backend
+            docker compose ps"; then
               exit 0
             fi
 

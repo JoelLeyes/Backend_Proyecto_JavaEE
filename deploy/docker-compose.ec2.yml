@@ -1,0 +1,39 @@
+services:
+  backend:
+    image: 058264217545.dkr.ecr.us-east-1.amazonaws.com/proyecto/backend:latest
+    container_name: nexolab-backend
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      JWT_SECRET: "${JWT_SECRET}"
+      SMTP_FROM: "${SMTP_FROM}"
+      SMTP_HOST: "${SMTP_HOST}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_USER: "${SMTP_USER}"
+      SMTP_PASS: "${SMTP_PASS}"
+      SMTP_STARTTLS: "${SMTP_STARTTLS:-true}"
+      UPLOAD_DIR: "${UPLOAD_DIR:-/home/ec2-user/uploads}"
+    volumes:
+      - "${UPLOAD_DIR:-/home/ec2-user/uploads}:${UPLOAD_DIR:-/home/ec2-user/uploads}"
+
+  frontend:
+    image: 058264217545.dkr.ecr.us-east-1.amazonaws.com/proyecto/frontend:latest
+    container_name: nexolab-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nexolab-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
