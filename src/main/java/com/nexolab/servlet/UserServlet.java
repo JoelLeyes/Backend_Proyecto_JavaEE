@@ -39,8 +39,13 @@ public class UserServlet extends HttpServlet {
             String realPath = getServletContext().getRealPath("/uploads");
             if (realPath != null) FileStorageUtil.setUploadDir(realPath);
         }
-        String contextPath = getServletContext().getContextPath();
-        FileStorageUtil.setUrlPrefix(contextPath + "/uploads/");
+        String envPrefix = System.getenv("UPLOAD_URL_PREFIX");
+        if (envPrefix != null && !envPrefix.isBlank()) {
+            FileStorageUtil.setUrlPrefix(envPrefix.trim());
+        } else {
+            String contextPath = getServletContext().getContextPath();
+            FileStorageUtil.setUrlPrefix((contextPath.isEmpty() ? "/api" : contextPath) + "/uploads/");
+        }
     }
 
     @Override
