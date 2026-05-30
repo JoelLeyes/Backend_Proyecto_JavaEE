@@ -17,26 +17,36 @@ public class MigrationListener implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         EntityManagerFactory emf = null;
-        EntityManager em = null;
         try {
             emf = Persistence.createEntityManagerFactory("NexoLabPU");
-            em  = emf.createEntityManager();
-            em.getTransaction().begin();
             // Hibernate hbm2ddl=update never widens VARCHAR to TEXT; do it manually.
-            em.createNativeQuery(
-                "ALTER TABLE usuarios ALTER COLUMN foto_perfil_url TYPE TEXT"
-            ).executeUpdate();
+            runMigration(emf,
+                "ALTER TABLE usuarios ALTER COLUMN foto_perfil_url TYPE TEXT",
+                "foto_perfil_url → TEXT");
+            // Ensures push_token column exists even if Hibernate hasn't run yet.
+            runMigration(emf,
+                "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS push_token VARCHAR(512) NULL",
+                "push_token VARCHAR(512)");
+        } finally {
+            if (emf != null) try { emf.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    private void runMigration(EntityManagerFactory emf, String sql, String description) {
+        EntityManager em = null;
+        try {
+            em = emf.createEntityManager();
+            em.getTransaction().begin();
+            em.createNativeQuery(sql).executeUpdate();
             em.getTransaction().commit();
-            log.info("MigrationListener: foto_perfil_url migrada a TEXT correctamente.");
+            log.info("MigrationListener: " + description + " aplicada correctamente.");
         } catch (Exception e) {
-            // Column is already TEXT or migration already ran — safe to ignore.
-            log.info("MigrationListener: foto_perfil_url ya es TEXT (o migración no necesaria): " + e.getMessage());
+            log.info("MigrationListener: " + description + " — ya aplicada o no necesaria: " + e.getMessage());
             if (em != null && em.getTransaction().isActive()) {
                 try { em.getTransaction().rollback(); } catch (Exception ignored) {}
             }
         } finally {
-            if (em  != null) try { em.close();  } catch (Exception ignored) {}
-            if (emf != null) try { emf.close(); } catch (Exception ignored) {}
+            if (em != null) try { em.close(); } catch (Exception ignored) {}
         }
     }
 }
