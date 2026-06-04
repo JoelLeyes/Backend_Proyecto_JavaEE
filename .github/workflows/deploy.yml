@@ -1,8 +1,11 @@
 name: Deploy Backend
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Java CI with Maven"]
     branches: [ main ]
+    types:
+      - completed
   workflow_dispatch:
 
 env:
@@ -23,6 +26,7 @@ env:
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
