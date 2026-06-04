@@ -1,2 +1,4 @@
 com\nexolab\util\JwtUtilTest.class
+com\nexolab\service\EmailServiceTest.class
 com\nexolab\service\TypingStoreTest.class
+com\nexolab\servlet\CorsFilterTest.class

@@ -10,6 +10,7 @@ import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Properties;
 
 public class EmailService {
@@ -33,12 +34,16 @@ public class EmailService {
     }
 
     public SmtpConfig loadFromEnv() {
-        String host = normalizeEnv(envOrNull("SMTP_HOST"));
-        String portStr = normalizeEnv(envOrNull("SMTP_PORT"));
-        String username = normalizeEnv(envOrNull("SMTP_USER"));
-        String password = normalizeEnv(envOrNull("SMTP_PASS"));
-        String from = normalizeEnv(envOrNull("SMTP_FROM"));
-        boolean startTls = Boolean.parseBoolean(envOrDefault("SMTP_STARTTLS", "true"));
+        return loadFromEnv(System.getenv());
+    }
+
+    SmtpConfig loadFromEnv(Map<String, String> env) {
+        String host = normalizeEnv(envOrNull(env, "SMTP_HOST"));
+        String portStr = normalizeEnv(envOrNull(env, "SMTP_PORT"));
+        String username = normalizeEnv(envOrNull(env, "SMTP_USER"));
+        String password = normalizeEnv(envOrNull(env, "SMTP_PASS"));
+        String from = normalizeEnv(envOrNull(env, "SMTP_FROM"));
+        boolean startTls = Boolean.parseBoolean(envOrDefault(env, "SMTP_STARTTLS", "true"));
 
         // Gmail "app passwords" a veces se copian con espacios (XXXX XXXX XXXX XXXX).
         // Normalizamos para que funcione igual.
@@ -93,12 +98,12 @@ public class EmailService {
         Transport.send(msg);
     }
 
-    private static String envOrNull(String key) {
-        return System.getenv(key);
+    private static String envOrNull(Map<String, String> env, String key) {
+        return env.get(key);
     }
 
-    private static String envOrDefault(String key, String def) {
-        String v = System.getenv(key);
+    private static String envOrDefault(Map<String, String> env, String key, String def) {
+        String v = env.get(key);
         return v == null ? def : v;
     }
 
