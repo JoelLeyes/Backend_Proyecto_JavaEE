@@ -1,0 +1,24 @@
+# Variables de entorno — NUNCA subir al repositorio
+.env
+.env.*
+*.env
+
+# Compilación Maven
+target/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
