@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-@WebServlet("/api/ai/chat")
+@WebServlet("/ai/chat")
 public class AIServlet extends HttpServlet {
     private final AIChatService aiChatService = new AIChatService();
     private final ObjectMapper objectMapper = new ObjectMapper();
