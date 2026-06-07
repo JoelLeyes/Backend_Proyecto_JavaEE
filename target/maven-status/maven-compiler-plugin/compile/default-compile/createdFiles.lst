@@ -18,10 +18,8 @@ com\nexolab\dao\MessageDAO.class
 com\nexolab\model\Chat.class
 com\nexolab\util\JwtUtil.class
 com\nexolab\servlet\UserServlet.class
-com\nexolab\service\AIChatService.class
 com\nexolab\model\Estado.class
 com\nexolab\dao\ChatDAO.class
-com\nexolab\servlet\AIServlet.class
 com\nexolab\servlet\MessageServlet$RequestContext.class
 com\nexolab\servlet\ChatServlet.class
 com\nexolab\servlet\AdminServlet$2.class
