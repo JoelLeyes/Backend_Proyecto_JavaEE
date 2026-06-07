@@ -61,8 +61,8 @@ public class AIChatService {
         conexion.setRequestMethod("POST");
         conexion.setRequestProperty("Content-Type", "application/json");
         conexion.setDoOutput(true);
-        conexion.setConnectTimeout(15000);
-        conexion.setReadTimeout(15000);
+        conexion.setConnectTimeout(20000);
+        conexion.setReadTimeout(30000);
 
         // Construir JSON del request
         String jsonRequest = "{\"inputs\":\"" + escaparJSON(inputs) + "\"}";
@@ -74,16 +74,18 @@ public class AIChatService {
 
         // Leer respuesta
         int codigoRespuesta = conexion.getResponseCode();
+        System.out.println("HF API Response Code: " + codigoRespuesta);
 
         if (codigoRespuesta == 503) {
             // Modelo está cargando
+            System.out.println("HF API: Model loading (503)");
             return "El modelo está iniciando. Por favor intenta en unos segundos.";
         }
 
         if (codigoRespuesta != 200) {
             String errorMsg = leerErrorStream(conexion);
             System.err.println("Error HF API (" + codigoRespuesta + "): " + errorMsg);
-            throw new IOException("Hugging Face API error: " + codigoRespuesta);
+            throw new IOException("Hugging Face API error: " + codigoRespuesta + " - " + errorMsg);
         }
 
         String respuesta = leerRespuesta(conexion);

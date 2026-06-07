@@ -54,8 +54,10 @@ public class AIServlet extends HttpServlet {
 
         } catch (Exception e) {
             System.err.println("Error en AIServlet: " + e.getMessage());
+            e.printStackTrace();
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            resp.getWriter().write("{\"error\": \"Error interno del servidor\"}");
+            String errorMsg = e.getMessage() != null ? e.getMessage() : "Error interno del servidor";
+            resp.getWriter().write("{\"error\": \"" + errorMsg + "\"}");
         }
     }
 }
