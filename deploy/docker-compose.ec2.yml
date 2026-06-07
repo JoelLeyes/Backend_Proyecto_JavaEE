@@ -3,6 +3,8 @@ services:
     image: 058264217545.dkr.ecr.us-east-1.amazonaws.com/proyecto/backend:latest
     container_name: nexolab-backend
     restart: unless-stopped
+    depends_on:
+      - ollama
     expose:
       - "8080"
     environment:
@@ -15,9 +17,19 @@ services:
       SMTP_STARTTLS: "${SMTP_STARTTLS:-true}"
       UPLOAD_DIR: "${UPLOAD_DIR:-/home/ec2-user/uploads}"
       FCM_SERVICE_ACCOUNT_JSON: "${FCM_SERVICE_ACCOUNT_JSON}"
-      GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.2:1b}"
     volumes:
       - "${UPLOAD_DIR:-/home/ec2-user/uploads}:${UPLOAD_DIR:-/home/ec2-user/uploads}"
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nexolab-ollama
+    restart: unless-stopped
+    expose:
+      - "11434"
+    volumes:
+      - ollama-data:/root/.ollama
 
   frontend:
     image: 058264217545.dkr.ecr.us-east-1.amazonaws.com/proyecto/frontend:latest
@@ -39,3 +51,6 @@ services:
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certs:/etc/nginx/certs:ro
+
+volumes:
+  ollama-data:

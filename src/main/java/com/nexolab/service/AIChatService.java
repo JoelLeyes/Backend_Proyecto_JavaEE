@@ -4,204 +4,214 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
+import java.util.Locale;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-/**
- * Servicio de IA usando Google Gemini API (gratuita).
- * Requiere la variable de entorno GEMINI_API_KEY.
- * Obtener API key gratis en: https://aistudio.google.com/app/apikey
- */
 public class AIChatService {
-
-    // Modelo Gemini 2.0 Flash — rápido y gratuito
-    private static final String GEMINI_API_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=";
-
-    private static final String GEMINI_KEY_ENV = "GEMINI_API_KEY";
+    private static final Logger LOGGER = Logger.getLogger(AIChatService.class.getName());
+    private static final String OLLAMA_BASE_URL_ENV = "OLLAMA_BASE_URL";
+    private static final String OLLAMA_MODEL_ENV = "OLLAMA_MODEL";
+    private static final String DEFAULT_OLLAMA_BASE_URL = "http://ollama:11434";
+    private static final String DEFAULT_OLLAMA_MODEL = "llama3.2:1b";
+    private static final String FALLBACK_MESSAGE = "El asistente local todavía no está listo. Si es la primera vez, el modelo se está descargando en el servidor.";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final String geminiApiKey = System.getenv(GEMINI_KEY_ENV);
+    private final String ollamaBaseUrl = normalizeEnv(System.getenv(OLLAMA_BASE_URL_ENV), DEFAULT_OLLAMA_BASE_URL);
+    private final String ollamaModel = normalizeEnv(System.getenv(OLLAMA_MODEL_ENV), DEFAULT_OLLAMA_MODEL);
 
-    /**
-     * Obtiene una respuesta del asistente IA basada en la consulta del usuario.
-     */
     public String obtenerRespuestaIA(String consulta) {
+        if (consulta == null || consulta.trim().isEmpty()) {
+            return "Por favor, escribí una pregunta.";
+        }
+
+        String respuestaLocal = responderLocalmente(consulta);
+        if (respuestaLocal != null) {
+            return respuestaLocal;
+        }
+
         try {
-            if (consulta == null || consulta.trim().isEmpty()) {
-                return "Por favor, escribí una pregunta.";
-            }
-
-            if (geminiApiKey == null || geminiApiKey.isBlank()) {
-                System.err.println("[AIChatService] GEMINI_API_KEY no configurada.");
-                return "El asistente IA no está configurado. El administrador debe configurar la variable de entorno GEMINI_API_KEY.";
-            }
-
-            return llamarGeminiAPI(consulta.trim());
-
+            return llamarOllamaAPI(construirPrompt(consulta.trim()));
         } catch (Exception e) {
-            System.err.println("[AIChatService] Error al llamar Gemini: " + e.getMessage());
-            e.printStackTrace();
-            return "Lo siento, ocurrió un error al contactar el asistente. Por favor, intentá nuevamente.";
+            LOGGER.log(Level.SEVERE, "Error al obtener respuesta de IA", e);
+            return FALLBACK_MESSAGE;
         }
     }
 
-    /**
-     * Realiza la llamada HTTP a la API de Google Gemini.
-     */
-    private String llamarGeminiAPI(String consulta) throws IOException {
-        String apiUrl = GEMINI_API_URL + geminiApiKey.trim();
-        URL url = new URL(apiUrl);
+    private String construirPrompt(String consulta) {
+        return "Sos un asistente virtual de NexoLab, una plataforma de mensajería instantánea para empresas. " +
+                "Respondé siempre en español de manera amigable, clara y concisa.\n\n" +
+                "Funcionalidades de la plataforma:\n" +
+                "- Mensajes de texto en chats privados y grupales\n" +
+                "- Envío de archivos adjuntos (PDF, Word, Excel, imágenes)\n" +
+                "- Reacciones a mensajes con emojis\n" +
+                "- Responder mensajes específicos (reply)\n" +
+                "- Indicador de \"escribiendo...\"\n" +
+                "- Búsqueda de mensajes dentro del chat\n" +
+                "- Gestión de grupos: agregar/expulsar miembros, renombrar grupo\n" +
+                "- Modo oscuro/claro\n\n" +
+                "Si la pregunta es general o no está relacionada con la plataforma, respondé igualmente de forma útil. " +
+                "Mantené las respuestas cortas (máximo 3-4 oraciones).\n\n" +
+                "Consulta del usuario: " + consulta;
+    }
 
-        HttpURLConnection conexion = (HttpURLConnection) url.openConnection();
-        conexion.setRequestMethod("POST");
-        conexion.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        conexion.setDoOutput(true);
-        conexion.setConnectTimeout(15000);
-        conexion.setReadTimeout(30000);
-
-        // Construir JSON de la petición al formato de Gemini
-        String systemPrompt = construirSystemPrompt();
-        String promptCompleto = systemPrompt + "\n\nConsulta del usuario: " + consulta;
-
-        String jsonBody = buildGeminiRequest(promptCompleto);
-
-        // Enviar cuerpo del request
-        try (OutputStream os = conexion.getOutputStream()) {
-            os.write(jsonBody.getBytes(StandardCharsets.UTF_8));
+    private String llamarOllamaAPI(String prompt) throws IOException {
+        if (isBlank(ollamaBaseUrl) || isBlank(ollamaModel)) {
+            return FALLBACK_MESSAGE;
         }
 
-        int statusCode = conexion.getResponseCode();
-        System.out.println("[AIChatService] Gemini API status: " + statusCode);
+        URL url = URI.create(construirBaseUrl(ollamaBaseUrl) + "/api/chat").toURL();
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        connection.setDoOutput(true);
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(60000);
+
+        String requestBody = buildOllamaRequest(prompt);
+        try (OutputStream outputStream = connection.getOutputStream()) {
+            outputStream.write(requestBody.getBytes(StandardCharsets.UTF_8));
+        }
+
+        int statusCode = connection.getResponseCode();
+        String responseBody = leerStream(statusCode == 200 ? connection.getInputStream() : connection.getErrorStream());
+        connection.disconnect();
 
         if (statusCode != 200) {
-            String errorBody = leerStream(conexion.getErrorStream());
-            System.err.println("[AIChatService] Gemini error body: " + errorBody);
-            conexion.disconnect();
-            return interpretarErrorGemini(statusCode, errorBody);
+            LOGGER.log(Level.WARNING, "Error Ollama API ({0}): {1}", new Object[]{statusCode, responseBody});
+            return interpretarErrorOllama(statusCode, responseBody);
         }
 
-        String respuestaJson = leerStream(conexion.getInputStream());
-        conexion.disconnect();
-
-        return extraerTextoGemini(respuestaJson);
+        return extraerTextoOllama(responseBody);
     }
 
-    /**
-     * Construye el system prompt con contexto de la plataforma NexoLab.
-     */
-    private String construirSystemPrompt() {
-        return "Sos un asistente virtual de NexoLab, una plataforma de mensajería instantánea para empresas. " +
-               "Respondé siempre en español de manera amigable, clara y concisa.\n\n" +
-               "Funcionalidades de la plataforma:\n" +
-               "- Mensajes de texto en chats privados y grupales\n" +
-               "- Envío de archivos adjuntos (PDF, Word, Excel, imágenes)\n" +
-               "- Reacciones a mensajes con emojis\n" +
-               "- Responder mensajes específicos (reply)\n" +
-               "- Indicador de \"escribiendo...\"\n" +
-               "- Búsqueda de mensajes dentro del chat\n" +
-               "- Gestión de grupos: agregar/expulsar miembros, renombrar grupo\n" +
-               "- Modo oscuro/claro\n\n" +
-               "Si la pregunta es general o no está relacionada con la plataforma, respondé igualmente " +
-               "de forma útil. Mantené las respuestas cortas (máximo 3-4 oraciones).";
-    }
-
-    /**
-     * Construye el JSON de la petición para la API de Gemini.
-     */
-    private String buildGeminiRequest(String prompt) {
-        // Escapar el prompt para JSON
-        String escapado = escaparJSON(prompt);
+    private String buildOllamaRequest(String prompt) {
         return "{"
-             + "\"contents\":[{"
-             +   "\"parts\":[{\"text\":\"" + escapado + "\"}]"
-             + "}],"
-             + "\"generationConfig\":{"
-             +   "\"temperature\":0.7,"
-             +   "\"maxOutputTokens\":512,"
-             +   "\"topP\":0.9"
-             + "}"
-             + "}";
+                + "\"model\":\"" + escaparJSON(ollamaModel) + "\"," 
+                + "\"stream\":false,"
+                + "\"messages\":["
+                +   "{\"role\":\"system\",\"content\":\"" + escaparJSON(construirSystemPrompt()) + "\"},"
+                +   "{\"role\":\"user\",\"content\":\"" + escaparJSON(prompt) + "\"}"
+                + "]"
+                + "}";
     }
 
-    /**
-     * Extrae el texto generado de la respuesta JSON de Gemini.
-     */
-    private String extraerTextoGemini(String respuestaJson) {
+    private String construirSystemPrompt() {
+        return "Sos un asistente de ayuda para una plataforma de chat y comunicación empresarial. " +
+                "Mantené respuestas útiles, breves y enfocadas en el producto.";
+    }
+
+    private String extraerTextoOllama(String respuestaJson) {
         try {
             JsonNode raiz = objectMapper.readTree(respuestaJson);
-
-            // Estructura de Gemini: candidates[0].content.parts[0].text
-            JsonNode candidates = raiz.path("candidates");
-            if (candidates.isArray() && candidates.size() > 0) {
-                JsonNode content = candidates.get(0).path("content");
-                JsonNode parts = content.path("parts");
-                if (parts.isArray() && parts.size() > 0) {
-                    String texto = parts.get(0).path("text").asText("").trim();
-                    if (!texto.isEmpty()) {
-                        return texto;
-                    }
-                }
+            JsonNode message = raiz.path("message");
+            String content = message.path("content").asText("").trim();
+            if (!content.isEmpty()) {
+                return content;
             }
 
-            // Verificar si hay error embebido
+            String response = raiz.path("response").asText("").trim();
+            if (!response.isEmpty()) {
+                return response;
+            }
+
             if (raiz.has("error")) {
-                String errMsg = raiz.path("error").path("message").asText("Error desconocido");
-                System.err.println("[AIChatService] Error en JSON de Gemini: " + errMsg);
-                return "El asistente no pudo generar una respuesta. Intentá de nuevo.";
+                return "El asistente local devolvió un error: " + raiz.path("error").asText();
             }
 
-            System.err.println("[AIChatService] Respuesta inesperada de Gemini: " + respuestaJson);
-            return "No pude procesar la respuesta. Por favor, intentá de nuevo.";
-
+            return "No se pudo procesar la respuesta del asistente local.";
         } catch (Exception e) {
-            System.err.println("[AIChatService] Error al parsear respuesta de Gemini: " + e.getMessage());
-            return "Error al procesar la respuesta del asistente.";
+            LOGGER.log(Level.WARNING, "Error al extraer texto de respuesta", e);
+            return FALLBACK_MESSAGE;
         }
     }
 
-    /**
-     * Interpreta errores HTTP de Gemini y devuelve un mensaje amigable.
-     */
-    private String interpretarErrorGemini(int statusCode, String errorBody) {
+    private String interpretarErrorOllama(int statusCode, String errorBody) {
         if (statusCode == 400) {
             return "La consulta no pudo ser procesada. Por favor, reformulá tu pregunta.";
         }
-        if (statusCode == 401 || statusCode == 403) {
-            return "La API key de Gemini no es válida o no tiene permisos. Contactá al administrador.";
+        if (statusCode == 404) {
+            return "El asistente local todavía no está disponible. Si es la primera vez, el modelo se está descargando en el servidor.";
         }
-        if (statusCode == 429) {
-            return "Se superó el límite de consultas al asistente. Intentá en unos minutos.";
+        if (statusCode >= 500) {
+            return FALLBACK_MESSAGE;
         }
-        if (statusCode == 503 || statusCode == 502) {
-            return "El servicio de IA está temporalmente no disponible. Intentá en unos instantes.";
-        }
-        return "El asistente no está disponible en este momento (código " + statusCode + "). Intentá más tarde.";
+        return "No se pudo obtener respuesta del asistente local.";
     }
 
-    /**
-     * Lee un InputStream (o ErrorStream) a String.
-     */
-    private String leerStream(java.io.InputStream stream) {
-        if (stream == null) return "";
-        try (Scanner scanner = new Scanner(stream, StandardCharsets.UTF_8)) {
-            StringBuilder sb = new StringBuilder();
-            while (scanner.hasNextLine()) {
-                sb.append(scanner.nextLine());
-            }
-            return sb.toString();
-        } catch (Exception e) {
+    private String responderLocalmente(String consulta) {
+        String normalizada = normalizarConsulta(consulta);
+
+        if (esSaludo(normalizada)) {
+            return "Hola. Puedo ayudarte con el chat, archivos, reacciones, menciones, chats privados o grupos. Decime qué necesitás.";
+        }
+
+        if (normalizada.contains("que puedes hacer") || normalizada.contains("ayuda") || normalizada.contains("help")) {
+            return "Puedo ayudarte con el chat, archivos, reacciones, menciones, chats privados, grupos y estado escribiendo. Preguntame algo concreto.";
+        }
+
+        return null;
+    }
+
+    private static boolean esSaludo(String consulta) {
+        return consulta.equals("hola")
+                || consulta.equals("hello")
+                || consulta.equals("hi")
+                || consulta.equals("buenas")
+                || consulta.equals("buen dia")
+                || consulta.equals("buenos dias")
+                || consulta.equals("buenas tardes")
+                || consulta.equals("buenas noches");
+    }
+
+    private static String normalizarConsulta(String consulta) {
+        String limpia = Normalizer.normalize(consulta, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "");
+        return limpia.toLowerCase(Locale.ROOT).trim();
+    }
+
+    private static String construirBaseUrl(String value) {
+        if (value.endsWith("/")) {
+            return value.substring(0, value.length() - 1);
+        }
+        return value;
+    }
+
+    private static String normalizeEnv(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? defaultValue : trimmed;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private static String leerStream(InputStream stream) {
+        if (stream == null) {
             return "";
         }
+        try (Scanner scanner = new Scanner(stream, StandardCharsets.UTF_8)) {
+            StringBuilder builder = new StringBuilder();
+            while (scanner.hasNextLine()) {
+                builder.append(scanner.nextLine());
+            }
+            return builder.toString();
+        }
     }
 
-    /**
-     * Escapa caracteres especiales para insertar en un string JSON.
-     */
-    private String escaparJSON(String texto) {
+    private static String escaparJSON(String texto) {
         return texto
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\"")
