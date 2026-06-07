@@ -2,7 +2,6 @@ package com.nexolab.servlet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexolab.service.AIChatService;
-import com.nexolab.service.AuthService;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,7 +14,6 @@ import java.util.Map;
 @WebServlet("/api/ai/chat")
 public class AIServlet extends HttpServlet {
     private final AIChatService aiChatService = new AIChatService();
-    private final AuthService authService = new AuthService();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -33,6 +31,7 @@ public class AIServlet extends HttpServlet {
             }
 
             // Parsear request JSON
+            @SuppressWarnings("unchecked")
             Map<String, String> parametros = objectMapper.readValue(req.getInputStream(), Map.class);
             String consulta = parametros.get("consulta");
 

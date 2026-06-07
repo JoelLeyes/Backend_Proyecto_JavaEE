@@ -15,7 +15,9 @@ public class AIChatService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /**     * Obtiene respuesta del agente IA basada en una consulta del usuario     */
+    /**
+     * Obtiene respuesta del agente IA basada en una consulta del usuario
+     */
     public String obtenerRespuestaIA(String consulta) {
         try {
             // Construir el prompt con contexto de la plataforma
@@ -29,7 +31,9 @@ public class AIChatService {
         }
     }
 
-    /**     * Construye el prompt con contexto de la plataforma     */
+    /**
+     * Construye el prompt con contexto de la plataforma
+     */
     private String construirPrompt(String consulta) {
         return "Eres un asistente de ayuda para una plataforma de chat y comunicación. " +
                 "Debes responder preguntas frecuentes, dar recomendaciones de usuarios y contenido, " +
@@ -46,7 +50,9 @@ public class AIChatService {
                 "con la plataforma, sugiere que contacte al soporte técnico.";
     }
 
-    /**     * Llamada a la API de Gemini     */
+    /**
+     * Llamada a la API de Gemini
+     */
     private String llamarGeminiAPI(String prompt) throws IOException {
         // Construir URL con API key
         String urlConKey = GEMINI_API_URL + "?key=" + GEMINI_API_KEY;
@@ -79,22 +85,30 @@ public class AIChatService {
         return extraerTextoRespuesta(respuesta);
     }
 
-    /**     * Construye el JSON para el request de Gemini     */
-    private String construirJsonRequest(String prompt) throws Exception {
-        return objectMapper.writeValueAsString(new Object() {
-            public Object[] contents = {
-                    new Object() {
-                        public Object[] parts = {
-                                new Object() {
-                                    public String text = prompt;
-                                }
-                        };
-                    }
-            };
-        });
+    /**
+     * Construye el JSON para el request de Gemini
+     */
+    private String construirJsonRequest(String prompt) throws IOException {
+        try {
+            return objectMapper.writeValueAsString(new Object() {
+                public final Object[] contents = {
+                        new Object() {
+                            public final Object[] parts = {
+                                    new Object() {
+                                        public final String text = prompt;
+                                    }
+                            };
+                        }
+                };
+            });
+        } catch (Exception e) {
+            throw new IOException("Error al construir JSON: " + e.getMessage(), e);
+        }
     }
 
-    /**     * Lee la respuesta de la conexión HTTP     */
+    /**
+     * Lee la respuesta de la conexión HTTP
+     */
     private String leerRespuesta(HttpURLConnection conexion) throws IOException {
         Scanner scanner = new Scanner(conexion.getInputStream(), StandardCharsets.UTF_8);
         StringBuilder respuesta = new StringBuilder();
@@ -107,8 +121,10 @@ public class AIChatService {
         return respuesta.toString();
     }
 
-    /**     * Extrae el texto de la respuesta JSON de Gemini     */
-    private String extraerTextoRespuesta(String respuestaJson) throws Exception {
+    /**
+     * Extrae el texto de la respuesta JSON de Gemini
+     */
+    private String extraerTextoRespuesta(String respuestaJson) {
         try {
             JsonNode raiz = objectMapper.readTree(respuestaJson);
 
