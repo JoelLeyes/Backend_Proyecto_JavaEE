@@ -18,15 +18,12 @@ import java.util.logging.Logger;
 
 public class AIChatService {
     private static final Logger LOGGER = Logger.getLogger(AIChatService.class.getName());
-    private static final String OLLAMA_BASE_URL_ENV = "OLLAMA_BASE_URL";
-    private static final String OLLAMA_MODEL_ENV = "OLLAMA_MODEL";
-    private static final String DEFAULT_OLLAMA_BASE_URL = "http://ollama:11434";
-    private static final String DEFAULT_OLLAMA_MODEL = "llama3.2:1b";
-    private static final String FALLBACK_MESSAGE = "El asistente local todavía no está listo. Si es la primera vez, el modelo se está descargando en el servidor.";
+    private static final String GEMINI_API_KEY_ENV = "GEMINI_API_KEY";
+    private static final String GEMINI_MODEL = "gemini-2.0-flash";
+    private static final String FALLBACK_MESSAGE = "Lo siento, no puedo procesar tu consulta en este momento. Por favor, intenta más tarde.";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final String ollamaBaseUrl = normalizeEnv(System.getenv(OLLAMA_BASE_URL_ENV), DEFAULT_OLLAMA_BASE_URL);
-    private final String ollamaModel = normalizeEnv(System.getenv(OLLAMA_MODEL_ENV), DEFAULT_OLLAMA_MODEL);
+    private final String geminiApiKey = normalizeEnv(System.getenv(GEMINI_API_KEY_ENV));
 
     public String obtenerRespuestaIA(String consulta) {
         if (consulta == null || consulta.trim().isEmpty()) {
@@ -39,7 +36,7 @@ public class AIChatService {
         }
 
         try {
-            return llamarOllamaAPI(construirPrompt(consulta.trim()));
+            return llamarGeminiAPI(construirPrompt(consulta.trim()));
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error al obtener respuesta de IA", e);
             return FALLBACK_MESSAGE;
@@ -63,12 +60,12 @@ public class AIChatService {
                 "Consulta del usuario: " + consulta;
     }
 
-    private String llamarOllamaAPI(String prompt) throws IOException {
-        if (isBlank(ollamaBaseUrl) || isBlank(ollamaModel)) {
-            return FALLBACK_MESSAGE;
+    private String llamarGeminiAPI(String prompt) throws IOException {
+        if (isBlank(geminiApiKey)) {
+            return "El asistente no está configurado. Falta la clave GEMINI_API_KEY.";
         }
 
-        URL url = URI.create(construirBaseUrl(ollamaBaseUrl) + "/api/chat").toURL();
+        URL url = URI.create("https://generativelanguage.googleapis.com/v1beta/models/" + GEMINI_MODEL + ":generateContent?key=" + geminiApiKey).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
@@ -76,7 +73,7 @@ public class AIChatService {
         connection.setConnectTimeout(15000);
         connection.setReadTimeout(60000);
 
-        String requestBody = buildOllamaRequest(prompt);
+        String requestBody = buildGeminiRequest(prompt);
         try (OutputStream outputStream = connection.getOutputStream()) {
             outputStream.write(requestBody.getBytes(StandardCharsets.UTF_8));
         }
@@ -86,21 +83,18 @@ public class AIChatService {
         connection.disconnect();
 
         if (statusCode != 200) {
-            LOGGER.log(Level.WARNING, "Error Ollama API ({0}): {1}", new Object[]{statusCode, responseBody});
-            return interpretarErrorOllama(statusCode, responseBody);
+            LOGGER.log(Level.WARNING, "Error Gemini API ({0}): {1}", new Object[]{statusCode, responseBody});
+            return interpretarErrorGemini(statusCode, responseBody);
         }
 
-        return extraerTextoOllama(responseBody);
+        return extraerTextoGemini(responseBody);
     }
 
-    private String buildOllamaRequest(String prompt) {
+    private String buildGeminiRequest(String prompt) {
         return "{"
-                + "\"model\":\"" + escaparJSON(ollamaModel) + "\"," 
-                + "\"stream\":false,"
-                + "\"messages\":["
-                +   "{\"role\":\"system\",\"content\":\"" + escaparJSON(construirSystemPrompt()) + "\"},"
-                +   "{\"role\":\"user\",\"content\":\"" + escaparJSON(prompt) + "\"}"
-                + "]"
+                + "\"systemInstruction\":{\"parts\":[{\"text\":\"" + escaparJSON(construirSystemPrompt()) + "\"}]},"
+                + "\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"" + escaparJSON(prompt) + "\"}]}],"
+                + "\"generationConfig\":{\"temperature\":0.7,\"maxOutputTokens\":250}"
                 + "}";
     }
 
@@ -109,42 +103,47 @@ public class AIChatService {
                 "Mantené respuestas útiles, breves y enfocadas en el producto.";
     }
 
-    private String extraerTextoOllama(String respuestaJson) {
+    private String extraerTextoGemini(String respuestaJson) {
         try {
             JsonNode raiz = objectMapper.readTree(respuestaJson);
-            JsonNode message = raiz.path("message");
-            String content = message.path("content").asText("").trim();
-            if (!content.isEmpty()) {
-                return content;
-            }
-
-            String response = raiz.path("response").asText("").trim();
-            if (!response.isEmpty()) {
-                return response;
+            JsonNode candidates = raiz.path("candidates");
+            if (candidates.isArray() && !candidates.isEmpty()) {
+                JsonNode first = candidates.get(0);
+                JsonNode content = first.path("content");
+                JsonNode parts = content.path("parts");
+                if (parts.isArray() && !parts.isEmpty()) {
+                    String text = parts.get(0).path("text").asText("").trim();
+                    if (!text.isEmpty()) {
+                        return text;
+                    }
+                }
             }
 
             if (raiz.has("error")) {
-                return "El asistente local devolvió un error: " + raiz.path("error").asText();
+                return "El servicio de IA devolvió un error: " + raiz.path("error").toString();
             }
 
-            return "No se pudo procesar la respuesta del asistente local.";
+            return "No se pudo procesar la respuesta de la IA.";
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error al extraer texto de respuesta", e);
             return FALLBACK_MESSAGE;
         }
     }
 
-    private String interpretarErrorOllama(int statusCode, String errorBody) {
+    private String interpretarErrorGemini(int statusCode, String errorBody) {
         if (statusCode == 400) {
             return "La consulta no pudo ser procesada. Por favor, reformulá tu pregunta.";
         }
-        if (statusCode == 404) {
-            return "El asistente local todavía no está disponible. Si es la primera vez, el modelo se está descargando en el servidor.";
+        if (statusCode == 401 || statusCode == 403) {
+            return "No se pudo autenticar con el servicio de IA. Verificá la configuración.";
         }
-        if (statusCode >= 500) {
+        if (statusCode == 429) {
+            return "El servicio de IA está ocupado por límite de uso. Intenta nuevamente en unos minutos.";
+        }
+        if (statusCode == 502 || statusCode == 503) {
             return FALLBACK_MESSAGE;
         }
-        return "No se pudo obtener respuesta del asistente local.";
+        return "No se pudo obtener respuesta del servicio de IA.";
     }
 
     private String responderLocalmente(String consulta) {
@@ -178,20 +177,12 @@ public class AIChatService {
         return limpia.toLowerCase(Locale.ROOT).trim();
     }
 
-    private static String construirBaseUrl(String value) {
-        if (value.endsWith("/")) {
-            return value.substring(0, value.length() - 1);
-        }
-        return value;
-    }
-
-    private static String normalizeEnv(String value, String defaultValue) {
+    private static String normalizeEnv(String value) {
         if (value == null) {
-            return defaultValue;
+            return "";
         }
 
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? defaultValue : trimmed;
+        return value.trim();
     }
 
     private static boolean isBlank(String value) {
