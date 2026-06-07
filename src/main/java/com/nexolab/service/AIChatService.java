@@ -12,8 +12,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class AIChatService {
     // API gratuita de Hugging Face - Conversational Model
     private static final String HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium";
+    private static final String HF_API_TOKEN_ENV = "HF_API_TOKEN";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final String hfApiToken = System.getenv(HF_API_TOKEN_ENV);
 
     /**     * Obtiene respuesta del agente IA basada en una consulta del usuario     */
     public String obtenerRespuestaIA(String consulta) {
@@ -60,12 +62,15 @@ public class AIChatService {
         HttpURLConnection conexion = (HttpURLConnection) url.openConnection();
         conexion.setRequestMethod("POST");
         conexion.setRequestProperty("Content-Type", "application/json");
+        if (hfApiToken != null && !hfApiToken.isBlank()) {
+            conexion.setRequestProperty("Authorization", "Bearer " + hfApiToken.trim());
+        }
         conexion.setDoOutput(true);
         conexion.setConnectTimeout(20000);
         conexion.setReadTimeout(30000);
 
         // Construir JSON del request
-        String jsonRequest = "{\"inputs\":\"" + escaparJSON(inputs) + "\"}";
+        String jsonRequest = "{\"inputs\":\"" + escaparJSON(inputs) + "\",\"options\":{\"wait_for_model\":true}}";
 
         // Enviar request
         byte[] salida = jsonRequest.getBytes(StandardCharsets.UTF_8);
@@ -76,16 +81,23 @@ public class AIChatService {
         int codigoRespuesta = conexion.getResponseCode();
         System.out.println("HF API Response Code: " + codigoRespuesta);
 
-        if (codigoRespuesta == 503) {
-            // Modelo está cargando
-            System.out.println("HF API: Model loading (503)");
-            return "El modelo está iniciando. Por favor intenta en unos segundos.";
-        }
-
         if (codigoRespuesta != 200) {
             String errorMsg = leerErrorStream(conexion);
             System.err.println("Error HF API (" + codigoRespuesta + "): " + errorMsg);
-            throw new IOException("Hugging Face API error: " + codigoRespuesta + " - " + errorMsg);
+            conexion.disconnect();
+            if (codigoRespuesta == 401 || codigoRespuesta == 403) {
+                return "El servicio de IA no está configurado correctamente. Configura HF_API_TOKEN en el backend.";
+            }
+            if (codigoRespuesta == 429) {
+                return "El servicio de IA está ocupado por límite de uso. Intenta nuevamente en unos minutos.";
+            }
+            if (codigoRespuesta == 503) {
+                return "El modelo de IA está iniciando. Por favor intenta en unos segundos.";
+            }
+            if (codigoRespuesta >= 500) {
+                return "El servicio de IA no está disponible temporalmente. Intenta más tarde.";
+            }
+            return "No se pudo obtener respuesta de IA (" + codigoRespuesta + ").";
         }
 
         String respuesta = leerRespuesta(conexion);
@@ -131,6 +143,10 @@ public class AIChatService {
         try {
             JsonNode raiz = objectMapper.readTree(respuestaJson);
 
+            if (raiz.isObject() && raiz.has("error")) {
+                return "El servicio de IA devolvió un error: " + raiz.get("error").asText();
+            }
+
             // Estructura de Hugging Face: [{ "generated_text": "..." }]
             if (raiz.isArray() && raiz.size() > 0) {
                 JsonNode primerElemento = raiz.get(0);
@@ -149,6 +165,11 @@ public class AIChatService {
                             "No pude generar una respuesta. Por favor intenta con otra pregunta." :
                             textoCompleto;
                 }
+            }
+
+            if (raiz.isObject()) {
+                if (raiz.has("generated_text")) return raiz.get("generated_text").asText();
+                if (raiz.has("answer")) return raiz.get("answer").asText();
             }
 
             return "No se pudo procesar la respuesta de la IA.";
