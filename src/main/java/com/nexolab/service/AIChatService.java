@@ -10,23 +10,26 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AIChatService {
-    private static final String GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"; // Cambiar cuando tengas la clave
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+    // API gratuita de Hugging Face - Conversational Model
+    private static final String HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /**
-     * Obtiene respuesta del agente IA basada en una consulta del usuario
-     */
+    /**     * Obtiene respuesta del agente IA basada en una consulta del usuario     */
     public String obtenerRespuestaIA(String consulta) {
         try {
-            // Construir el prompt con contexto de la plataforma
+            if (consulta == null || consulta.trim().isEmpty()) {
+                return "Por favor, escribe una pregunta.";
+            }
+
+            // Construir el prompt con contexto
             String promptConContexto = construirPrompt(consulta);
 
-            // Llamar a Gemini API
-            return llamarGeminiAPI(promptConContexto);
+            // Llamar a Hugging Face API (sin API key requerida para este modelo)
+            return llamarHFAPI(promptConContexto);
         } catch (Exception e) {
             System.err.println("Error al obtener respuesta de IA: " + e.getMessage());
+            e.printStackTrace();
             return "Lo siento, no puedo procesar tu consulta en este momento. Por favor, intenta más tarde.";
         }
     }
@@ -50,22 +53,19 @@ public class AIChatService {
                 "con la plataforma, sugiere que contacte al soporte técnico.";
     }
 
-    /**
-     * Llamada a la API de Gemini
-     */
-    private String llamarGeminiAPI(String prompt) throws IOException {
-        // Construir URL con API key
-        String urlConKey = GEMINI_API_URL + "?key=" + GEMINI_API_KEY;
-        URL url = new URL(urlConKey);
+    /**     * Llamada a la API de Hugging Face     */
+    private String llamarHFAPI(String inputs) throws IOException {
+        URL url = new URL(HF_API_URL);
 
-        // Crear conexión
         HttpURLConnection conexion = (HttpURLConnection) url.openConnection();
         conexion.setRequestMethod("POST");
         conexion.setRequestProperty("Content-Type", "application/json");
         conexion.setDoOutput(true);
+        conexion.setConnectTimeout(15000);
+        conexion.setReadTimeout(15000);
 
         // Construir JSON del request
-        String jsonRequest = construirJsonRequest(prompt);
+        String jsonRequest = "{\"inputs\":\"" + escaparJSON(inputs) + "\"}";
 
         // Enviar request
         byte[] salida = jsonRequest.getBytes(StandardCharsets.UTF_8);
@@ -74,8 +74,16 @@ public class AIChatService {
 
         // Leer respuesta
         int codigoRespuesta = conexion.getResponseCode();
+
+        if (codigoRespuesta == 503) {
+            // Modelo está cargando
+            return "El modelo está iniciando. Por favor intenta en unos segundos.";
+        }
+
         if (codigoRespuesta != 200) {
-            throw new IOException("Gemini API error: " + codigoRespuesta);
+            String errorMsg = leerErrorStream(conexion);
+            System.err.println("Error HF API (" + codigoRespuesta + "): " + errorMsg);
+            throw new IOException("Hugging Face API error: " + codigoRespuesta);
         }
 
         String respuesta = leerRespuesta(conexion);
@@ -85,30 +93,7 @@ public class AIChatService {
         return extraerTextoRespuesta(respuesta);
     }
 
-    /**
-     * Construye el JSON para el request de Gemini
-     */
-    private String construirJsonRequest(String prompt) throws IOException {
-        try {
-            return objectMapper.writeValueAsString(new Object() {
-                public final Object[] contents = {
-                        new Object() {
-                            public final Object[] parts = {
-                                    new Object() {
-                                        public final String text = prompt;
-                                    }
-                            };
-                        }
-                };
-            });
-        } catch (Exception e) {
-            throw new IOException("Error al construir JSON: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Lee la respuesta de la conexión HTTP
-     */
+    /**     * Lee la respuesta de la conexión HTTP     */
     private String leerRespuesta(HttpURLConnection conexion) throws IOException {
         Scanner scanner = new Scanner(conexion.getInputStream(), StandardCharsets.UTF_8);
         StringBuilder respuesta = new StringBuilder();
@@ -121,24 +106,46 @@ public class AIChatService {
         return respuesta.toString();
     }
 
-    /**
-     * Extrae el texto de la respuesta JSON de Gemini
-     */
+    /**     * Lee el stream de error     */
+    private String leerErrorStream(HttpURLConnection conexion) {
+        try {
+            if (conexion.getErrorStream() == null) {
+                return "Error desconocido";
+            }
+            Scanner scanner = new Scanner(conexion.getErrorStream(), StandardCharsets.UTF_8);
+            StringBuilder error = new StringBuilder();
+            while (scanner.hasNextLine()) {
+                error.append(scanner.nextLine());
+            }
+            scanner.close();
+            return error.toString();
+        } catch (Exception e) {
+            return "Error desconocido";
+        }
+    }
+
+    /**     * Extrae el texto de la respuesta JSON     */
     private String extraerTextoRespuesta(String respuestaJson) {
         try {
             JsonNode raiz = objectMapper.readTree(respuestaJson);
 
-            // Navegar por la estructura: candidates[0].content.parts[0].text
-            if (raiz.has("candidates") && raiz.get("candidates").isArray()) {
-                JsonNode primerCandidato = raiz.get("candidates").get(0);
-                if (primerCandidato.has("content")) {
-                    JsonNode contenido = primerCandidato.get("content");
-                    if (contenido.has("parts") && contenido.get("parts").isArray()) {
-                        JsonNode primerParte = contenido.get("parts").get(0);
-                        if (primerParte.has("text")) {
-                            return primerParte.get("text").asText();
+            // Estructura de Hugging Face: [{ "generated_text": "..." }]
+            if (raiz.isArray() && raiz.size() > 0) {
+                JsonNode primerElemento = raiz.get(0);
+                if (primerElemento.has("generated_text")) {
+                    String textoCompleto = primerElemento.get("generated_text").asText();
+
+                    // Limpiar el texto: remover el prompt original si está incluido
+                    if (textoCompleto.contains("Usuario pregunta:")) {
+                        String[] partes = textoCompleto.split("Usuario pregunta:\"");
+                        if (partes.length > 1) {
+                            textoCompleto = partes[1].replace("\"", "").trim();
                         }
                     }
+
+                    return textoCompleto.isEmpty() ?
+                            "No pude generar una respuesta. Por favor intenta con otra pregunta." :
+                            textoCompleto;
                 }
             }
 
@@ -147,5 +154,15 @@ public class AIChatService {
             System.err.println("Error al extraer texto de respuesta: " + e.getMessage());
             return "Error al procesar la respuesta.";
         }
+    }
+
+    /**     * Escapa caracteres especiales para JSON     */
+    private String escaparJSON(String texto) {
+        return texto
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 }
