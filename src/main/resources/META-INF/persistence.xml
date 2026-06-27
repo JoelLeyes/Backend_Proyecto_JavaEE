@@ -17,7 +17,7 @@
 
         <properties>
             <property name="jakarta.persistence.jdbc.driver" value="org.postgresql.Driver"/>
-            <property name="jakarta.persistence.jdbc.url" value="jdbc:postgresql://rds-postgres.cru2e2ww8f5o.us-east-1.rds.amazonaws.com:5432/postgres?sslmode=require"/>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:postgresql://rds-postgres.cpvs8yjqjutf.us-east-1.rds.amazonaws.com:5432/postgres?sslmode=require"/>
             <property name="jakarta.persistence.jdbc.user" value="postgres"/>
             <property name="jakarta.persistence.jdbc.password" value="yoelymale1415"/>
 

@@ -100,37 +100,6 @@ jobs:
             [ -z "${sg_id}" ] && continue
             echo "Actualizando SG: ${sg_id}"
 
-            rules_json="$(aws ec2 describe-security-group-rules --filters "Name=group-id,Values=${sg_id}" --query 'SecurityGroupRules[?IsEgress==`false` && IpProtocol==`tcp` && FromPort==`22` && ToPort==`22`].{Id:SecurityGroupRuleId,Cidr:CidrIpv4,Desc:Description}' --output json || true)"
-            revoke_ids="$(RULES_JSON="${rules_json}" KEEP_CIDR="${cidr}" python3 - <<'PY'
-          import json, os
-          rules = json.loads(os.environ.get("RULES_JSON") or "[]")
-          keep = os.environ["KEEP_CIDR"]
-          ids = [
-              r.get("Id")
-              for r in rules
-              if (r.get("Desc") or "").startswith("AUTO-SSH")
-              and r.get("Cidr")
-              and r.get("Cidr") != keep
-              and r.get("Id")
-            ]
-          print(" ".join(ids))
-          PY
-            )"
-
-            if [ -n "${revoke_ids}" ]; then
-              if revoke_out="$(aws ec2 revoke-security-group-ingress --group-id "${sg_id}" --security-group-rule-ids ${revoke_ids} 2>&1)"; then
-                echo "Reglas viejas revocadas en ${sg_id}"
-              else
-                rc=$?
-                if echo "${revoke_out}" | grep -q "InvalidSecurityGroupRuleId.NotFound"; then
-                  echo "Alguna regla ya no existía en ${sg_id}; continúo"
-                else
-                  echo "${revoke_out}"
-                  exit "${rc}"
-                fi
-              fi
-            fi
-
             perm_json="$(CIDR="${cidr}" python3 - <<'PY'
           import json, os
           cidr = os.environ["CIDR"]
@@ -328,7 +297,7 @@ jobs:
             cd ${EC2_APP_DIR}
 
             if [ -f /home/ec2-user/app/certs/nexolab.cloud-ip.cc/certificate.crt ] && [ -f /home/ec2-user/app/certs/nexolab.cloud-ip.cc/ca_bundle.crt ]; then
-              sudo sh -c 'set -euo pipefail; CERT_DIR=/home/ec2-user/app/certs/nexolab.cloud-ip.cc; cat "$CERT_DIR/certificate.crt" "$CERT_DIR/ca_bundle.crt" > "$CERT_DIR/fullchain.pem"; chmod 644 "$CERT_DIR/fullchain.pem"'
+              sudo sh -c 'set -euo pipefail; CERT_DIR=/home/ec2-user/app/certs/nexolab.cloud-ip.cc; cat "\$CERT_DIR/certificate.crt" "\$CERT_DIR/ca_bundle.crt" > "\$CERT_DIR/fullchain.pem"; chmod 644 "\$CERT_DIR/fullchain.pem"'
             else
               echo 'Faltan certificate.crt o ca_bundle.crt en /home/ec2-user/app/certs/nexolab.cloud-ip.cc' >&2
               exit 1
