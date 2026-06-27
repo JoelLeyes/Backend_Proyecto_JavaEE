@@ -8,6 +8,10 @@ on:
       - completed
   workflow_dispatch:
 
+concurrency:
+  group: nexolab-prod-deploy
+  cancel-in-progress: false
+
 env:
   ECR_REGISTRY: 614560290350.dkr.ecr.us-east-1.amazonaws.com
   IMAGE_NAME: proyecto/backend
@@ -242,7 +246,7 @@ jobs:
         run: |
           set -euo pipefail
           ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=20 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "set -euo pipefail
-          mkdir -p ${EC2_APP_DIR}/deploy"
+          sudo mkdir -p ${EC2_APP_DIR}/deploy"
 
           scp -i key.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ./deploy/docker-compose.ec2.yml ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/docker-compose.yml
           scp -i key.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ./deploy/nginx.conf ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/nginx.conf
@@ -320,7 +324,7 @@ jobs:
             fi
             docker compose version
             docker login --username AWS --password-stdin ${ECR_REGISTRY}
-            mkdir -p ${EC2_APP_DIR}
+            sudo mkdir -p ${EC2_APP_DIR}
             cd ${EC2_APP_DIR}
             rm -f .env || true
 
@@ -335,11 +339,13 @@ jobs:
             export GEMINI_API_KEY=${gemini_api_key_q}
             export FCM_SERVICE_ACCOUNT_JSON=${fcm_json_q}
             export SMTP_STARTTLS=true
-            mkdir -p \"${UPLOAD_DIR}\" || true
+            sudo mkdir -p ${upload_dir_q}
 
-            sudo env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose pull backend nginx
-            sudo env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose up -d --pull always --force-recreate backend nginx
-            sudo env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose ps"; then
+            sudo docker rm -f nexolab-nginx >/dev/null 2>&1 || true
+
+            sudo --preserve-env=JWT_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,SMTP_FROM,UPLOAD_DIR,ATLAS_MONGODB_URI,FCM_SERVICE_ACCOUNT_JSON,GEMINI_API_KEY,SMTP_STARTTLS env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose pull backend nginx
+            sudo --preserve-env=JWT_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,SMTP_FROM,UPLOAD_DIR,ATLAS_MONGODB_URI,FCM_SERVICE_ACCOUNT_JSON,GEMINI_API_KEY,SMTP_STARTTLS env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose up -d --pull always --force-recreate backend nginx
+            sudo --preserve-env=JWT_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,SMTP_FROM,UPLOAD_DIR,ATLAS_MONGODB_URI,FCM_SERVICE_ACCOUNT_JSON,GEMINI_API_KEY,SMTP_STARTTLS env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose ps"; then
               exit 0
             fi
 
