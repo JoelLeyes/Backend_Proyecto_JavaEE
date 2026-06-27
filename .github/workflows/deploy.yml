@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  ECR_REGISTRY: 058264217545.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REGISTRY: 614560290350.dkr.ecr.us-east-1.amazonaws.com
   IMAGE_NAME: proyecto/backend
   EC2_HOST: 44.210.180.79
   EC2_USER: ec2-user
