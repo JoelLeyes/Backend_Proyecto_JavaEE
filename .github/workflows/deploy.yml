@@ -328,9 +328,9 @@ jobs:
             export SMTP_STARTTLS=true
             mkdir -p \"${UPLOAD_DIR}\" || true
 
-            docker compose pull backend
-            docker compose up -d --pull always --force-recreate backend
-            docker compose ps"; then
+            sudo env DOCKER_CONFIG="$HOME/.docker" docker compose pull backend
+            sudo env DOCKER_CONFIG="$HOME/.docker" docker compose up -d --pull always --force-recreate backend
+            sudo env DOCKER_CONFIG="$HOME/.docker" docker compose ps"; then
               exit 0
             fi
 
