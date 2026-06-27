@@ -11,7 +11,7 @@ on:
 env:
   ECR_REGISTRY: 058264217545.dkr.ecr.us-east-1.amazonaws.com
   IMAGE_NAME: proyecto/backend
-  EC2_HOST: 44.195.111.17
+  EC2_HOST: 44.210.180.79
   EC2_USER: ec2-user
   EC2_APP_DIR: /home/ec2-user/app
   JWT_SECRET: ${{ secrets.JWT_SECRET }}
