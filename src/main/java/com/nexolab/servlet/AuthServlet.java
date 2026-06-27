@@ -4,6 +4,7 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.nexolab.dao.UserDAO;
 import com.nexolab.service.AuthService;
 import com.nexolab.service.EmailService;
+import com.nexolab.service.MongoAuditService;
 import com.nexolab.model.Usuario;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +23,7 @@ public class AuthServlet extends HttpServlet {
 	private AuthService authService = new AuthService();
 	private UserDAO userDAO = new UserDAO();
 	private EmailService emailService = new EmailService();
+	private MongoAuditService auditService = MongoAuditService.getInstance();
 	private ObjectMapper objectMapper = new ObjectMapper();
 
 	@Override
@@ -43,13 +45,14 @@ public class AuthServlet extends HttpServlet {
 	}
 
 	private void handleRegister(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		String email = null;
 		try {
 			Map<String, String> body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, String>>() {});
 
 			String nombre = body.get("nombre");
 			String apellido = body.get("apellido");
 			String cargo = body.get("cargo");
-			String email = body.get("email");
+			email = body.get("email");
 			String password = body.get("password");
 
 			// Compatibilidad con frontend viejo
@@ -57,7 +60,7 @@ public class AuthServlet extends HttpServlet {
 				nombre = body.get("name");
 			}
 
-			authService.register(nombre, apellido, email, password, cargo);
+			Usuario registeredUser = authService.register(nombre, apellido, email, password, cargo);
 
 			boolean welcomeEmailSent = false;
 			EmailService.SmtpConfig cfg = emailService.loadFromEnv();
@@ -74,19 +77,34 @@ public class AuthServlet extends HttpServlet {
 			Map<String, Object> response = new HashMap<>();
 			response.put("message", "User registered successfully");
 			response.put("welcomeEmailSent", welcomeEmailSent);
+
+			Map<String, Object> details = new HashMap<>();
+			details.put("welcomeEmailSent", welcomeEmailSent);
+			details.put("cargo", cargo == null ? "" : cargo);
+			auditService.logUserAction("AuthServlet", "REGISTER", true,
+					registeredUser == null ? null : registeredUser.getIdUsuario(),
+					email,
+					req,
+					"Usuario registrado correctamente",
+					null,
+					details);
 			resp.getWriter().write(objectMapper.writeValueAsString(response));
 		} catch (Exception e) {
 			resp.setStatus(400);
 			Map<String, String> error = new HashMap<>();
 			error.put("message", e.getMessage());
+			auditService.logUserAction("AuthServlet", "REGISTER", false, null, email, req,
+					"Error al registrar usuario", e.getMessage(), null);
 			resp.getWriter().write(objectMapper.writeValueAsString(error));
 		}
 	}
 
 	private void handleLogin(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		String email = null;
 		try {
 			Map<String, String> body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, String>>() {});
-			String token = authService.login(body.get("email"), body.get("password"));
+			email = body.get("email");
+			String token = authService.login(email, body.get("password"));
 			Usuario user = authService.getUserFromToken(token);
 
 			Map<String, Object> response = new HashMap<>();
@@ -104,11 +122,23 @@ public class AuthServlet extends HttpServlet {
 			userMap.put("fotoPerfilUrl", user.getFotoPerfilUrl());
 			response.put("user", userMap);
 
+			Map<String, Object> details = new HashMap<>();
+			details.put("tokenIssued", true);
+			auditService.logUserAction("AuthServlet", "LOGIN", true,
+					user == null ? null : user.getIdUsuario(),
+					email,
+					req,
+					"Inicio de sesión exitoso",
+					null,
+					details);
+
 			resp.getWriter().write(objectMapper.writeValueAsString(response));
 		} catch (Exception e) {
 			resp.setStatus(401);
 			Map<String, String> error = new HashMap<>();
 			error.put("message", e.getMessage());
+			auditService.logUserAction("AuthServlet", "LOGIN", false, null, email, req,
+					"Intento de inicio de sesión fallido", e.getMessage(), null);
 			resp.getWriter().write(objectMapper.writeValueAsString(error));
 		}
 	}
@@ -142,6 +172,8 @@ public class AuthServlet extends HttpServlet {
 		response.put("message", "Si el correo existe, vas a recibir instrucciones para recuperar el acceso.");
 
 		Usuario user = userDAO.findByEmail(email);
+		Map<String, Object> details = new HashMap<>();
+		details.put("userFound", user != null);
 		if (user != null) {
 			String tempPassword = generateTempPassword();
 			String subject = "NexoLab - Recuperación de contraseña";
@@ -156,13 +188,21 @@ public class AuthServlet extends HttpServlet {
 				emailService.sendTextEmail(cfg, email, subject, msg);
 				user.setPasswordHash(BCrypt.withDefaults().hashToString(12, tempPassword.toCharArray()));
 				userDAO.update(user);
+				details.put("emailDelivered", true);
 			} catch (Exception e) {
 				resp.setStatus(500);
+				details.put("emailDelivered", false);
+				auditService.logUserAction("AuthServlet", "FORGOT_PASSWORD", false,
+						user.getIdUsuario(), email, req,
+						"No se pudo completar la recuperación de contraseña", e.getMessage(), details);
 				resp.getWriter().write("{\"message\":\"No se pudo enviar el correo de recuperación\"}");
 				return;
 			}
 		}
 
+		auditService.logUserAction("AuthServlet", "FORGOT_PASSWORD", true,
+				user == null ? null : user.getIdUsuario(), email, req,
+				"Solicitud de recuperación procesada", null, details);
 		resp.getWriter().write(objectMapper.writeValueAsString(response));
 	}
 
@@ -195,18 +235,28 @@ public class AuthServlet extends HttpServlet {
 		response.put("message", "Si el correo está registrado, vas a recibir el correo de bienvenida nuevamente.");
 
 		Usuario user = userDAO.findByEmail(email.trim());
+		Map<String, Object> details = new HashMap<>();
+		details.put("userFound", user != null);
 		if (user != null) {
 			String fullName = ((user.getNombre() == null ? "" : user.getNombre().trim())
 					+ " " + (user.getApellido() == null ? "" : user.getApellido().trim())).trim();
 			try {
 				emailService.sendTextEmail(cfg, email.trim(), buildWelcomeSubject(), buildWelcomeBody(fullName));
+				details.put("emailDelivered", true);
 			} catch (Exception e) {
 				resp.setStatus(500);
+				details.put("emailDelivered", false);
+				auditService.logUserAction("AuthServlet", "RESEND_WELCOME", false,
+						user.getIdUsuario(), email.trim(), req,
+						"No se pudo reenviar el correo de bienvenida", e.getMessage(), details);
 				resp.getWriter().write("{\"message\":\"No se pudo enviar el correo\"}");
 				return;
 			}
 		}
 
+		auditService.logUserAction("AuthServlet", "RESEND_WELCOME", true,
+				user == null ? null : user.getIdUsuario(), email.trim(), req,
+				"Correo de bienvenida reenviado o solicitado", null, details);
 		resp.getWriter().write(objectMapper.writeValueAsString(response));
 	}
 

@@ -8,18 +8,21 @@ import jakarta.servlet.http.Part;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 public class MessageService {
 	private final MessageDAO messageDAO = new MessageDAO();
 	private final PushNotificationService pushNotificationService = new PushNotificationService();
+	private final MongoAuditService auditService = MongoAuditService.getInstance();
 
-	public void enviarMensaje(Chat chat, Usuario emisor, String contenido) {
-		enviarMensaje(chat, emisor, contenido, null);
+	public Mensaje enviarMensaje(Chat chat, Usuario emisor, String contenido) {
+		return enviarMensaje(chat, emisor, contenido, null);
 	}
 
-	public void enviarMensaje(Chat chat, Usuario emisor, String contenido, Long respondaMensajeId) {
+	public Mensaje enviarMensaje(Chat chat, Usuario emisor, String contenido, Long respondaMensajeId) {
 		if (chat == null) {
 			throw new IllegalArgumentException("Chat is required");
 		}
@@ -63,6 +66,26 @@ public class MessageService {
 
 		messageDAO.save(mensaje);
 		pushNotificationService.notifyMessage(chat, emisor, mensaje);
+		auditService.logMessageAction(
+			"MessageService",
+			"MESSAGE_SEND",
+			true,
+			chat.getIdChat(),
+			chat.getNombreChat(),
+			chat.getTipoChat() == null ? null : chat.getTipoChat().toString(),
+			mensaje.getIdMensaje(),
+			emisor.getIdUsuario(),
+			emisor.getEmail(),
+			respondaMensajeId,
+			contenido.length(),
+			false,
+			0,
+			null,
+			"Mensaje enviado correctamente",
+			null,
+			buildMessageMetadata(contenido, 0, false, respondaMensajeId, 0)
+		);
+		return mensaje;
 	}
 
 	/**
@@ -72,7 +95,7 @@ public class MessageService {
 	 * @param contenido Texto del mensaje
 	 * @param archivo El archivo a adjuntar (opcional)
 	 */
-	public void enviarMensajeConAdjunto(Chat chat, Usuario emisor, String contenido, Part archivo) {
+	public Mensaje enviarMensajeConAdjunto(Chat chat, Usuario emisor, String contenido, Part archivo) {
 		if (chat == null) {
 			throw new IllegalArgumentException("Chat requerido");
 		}
@@ -131,6 +154,27 @@ public class MessageService {
 		// Guardar mensaje con adjunto en BD
 		messageDAO.save(mensaje);
 		pushNotificationService.notifyMessage(chat, emisor, mensaje);
+		int attachmentCount = mensaje.getAdjuntos() == null ? 0 : mensaje.getAdjuntos().size();
+		auditService.logMessageAction(
+			"MessageService",
+			"MESSAGE_SEND",
+			true,
+			chat.getIdChat(),
+			chat.getNombreChat(),
+			chat.getTipoChat() == null ? null : chat.getTipoChat().toString(),
+			mensaje.getIdMensaje(),
+			emisor.getIdUsuario(),
+			emisor.getEmail(),
+			null,
+			contenido.length(),
+			attachmentCount > 0,
+			attachmentCount,
+			null,
+			"Mensaje enviado correctamente",
+			null,
+				buildMessageMetadata(contenido, attachmentCount, attachmentCount > 0, null, archivo != null && archivo.getSize() > 0 ? 1 : 0)
+		);
+		return mensaje;
 	}
 
 	/**
@@ -140,11 +184,11 @@ public class MessageService {
 	 * @param contenido Texto del mensaje
 	 * @param archivos Lista de archivos a adjuntar
 	 */
-	public void enviarMensajeConAdjuntos(Chat chat, Usuario emisor, String contenido, java.util.List<Part> archivos) {
-		enviarMensajeConAdjuntos(chat, emisor, contenido, archivos, null);
+	public Mensaje enviarMensajeConAdjuntos(Chat chat, Usuario emisor, String contenido, java.util.List<Part> archivos) {
+		return enviarMensajeConAdjuntos(chat, emisor, contenido, archivos, null);
 	}
 
-	public void enviarMensajeConAdjuntos(Chat chat, Usuario emisor, String contenido, java.util.List<Part> archivos, Long respondaMensajeId) {
+	public Mensaje enviarMensajeConAdjuntos(Chat chat, Usuario emisor, String contenido, java.util.List<Part> archivos, Long respondaMensajeId) {
 		if (chat == null) {
 			throw new IllegalArgumentException("Chat requerido");
 		}
@@ -213,6 +257,43 @@ public class MessageService {
 		// Guardar mensaje con adjuntos en BD
 		messageDAO.save(mensaje);
 		pushNotificationService.notifyMessage(chat, emisor, mensaje);
+		int attachmentCount = mensaje.getAdjuntos() == null ? 0 : mensaje.getAdjuntos().size();
+		auditService.logMessageAction(
+			"MessageService",
+			"MESSAGE_SEND",
+			true,
+			chat.getIdChat(),
+			chat.getNombreChat(),
+			chat.getTipoChat() == null ? null : chat.getTipoChat().toString(),
+			mensaje.getIdMensaje(),
+			emisor.getIdUsuario(),
+			emisor.getEmail(),
+			respondaMensajeId,
+			contenido.length(),
+			attachmentCount > 0,
+			attachmentCount,
+			null,
+			"Mensaje enviado correctamente",
+			null,
+			buildMessageMetadata(contenido, attachmentCount, attachmentCount > 0, respondaMensajeId, archivos == null ? 0 : archivos.size())
+		);
+		return mensaje;
+	}
+
+	private Map<String, Object> buildMessageMetadata(String contenido,
+	                                                int attachmentCount,
+	                                                boolean hasAttachments,
+	                                                Long replyToMessageId,
+	                                                int attemptedAttachmentCount) {
+		Map<String, Object> metadata = new HashMap<>();
+		metadata.put("contentLength", contenido == null ? 0 : contenido.length());
+		metadata.put("hasAttachments", hasAttachments);
+		metadata.put("attachmentCount", attachmentCount);
+		metadata.put("attemptedAttachmentCount", attemptedAttachmentCount);
+		if (replyToMessageId != null) {
+			metadata.put("replyToMessageId", replyToMessageId);
+		}
+		return metadata;
 	}
 
 	public List<Mensaje> obtenerMensajesDesdeFecha(Chat chat, Date desdeFecha) {

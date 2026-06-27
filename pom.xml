@@ -17,6 +17,7 @@
         <jakarta.persistence.version>3.1.0</jakarta.persistence.version>
         <hibernate.version>6.4.4.Final</hibernate.version>
         <postgresql.version>42.7.4</postgresql.version>
+        <mongodb.driver.version>4.11.1</mongodb.driver.version>
         <jjwt.version>0.11.5</jjwt.version>
         <jackson.version>2.17.1</jackson.version>
         <junit.version>5.10.2</junit.version>
@@ -46,6 +47,12 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>${postgresql.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-sync</artifactId>
+            <version>${mongodb.driver.version}</version>
         </dependency>
 
         <dependency>

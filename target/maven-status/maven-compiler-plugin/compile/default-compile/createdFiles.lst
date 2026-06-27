@@ -4,6 +4,7 @@ com\nexolab\model\RolUsuario.class
 com\nexolab\servlet\AdminServlet.class
 com\nexolab\listener\AdminInitializer.class
 com\nexolab\service\EmailService.class
+com\nexolab\service\MongoAuditService.class
 com\nexolab\model\TipoEstado.class
 com\nexolab\servlet\MessageServlet.class
 com\nexolab\servlet\CorsFilter.class
@@ -21,6 +22,7 @@ com\nexolab\servlet\UserServlet.class
 com\nexolab\service\AIChatService.class
 com\nexolab\model\Estado.class
 com\nexolab\dao\ChatDAO.class
+com\nexolab\listener\MongoAuditListener.class
 com\nexolab\servlet\AIServlet.class
 com\nexolab\servlet\MessageServlet$RequestContext.class
 com\nexolab\servlet\ChatServlet.class

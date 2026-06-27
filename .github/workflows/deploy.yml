@@ -21,6 +21,7 @@ env:
   SMTP_PASS: ${{ secrets.SMTP_PASS }}
   SMTP_FROM: ${{ secrets.SMTP_FROM }}
   UPLOAD_DIR: ${{ secrets.UPLOAD_DIR }}
+  ATLAS_MONGODB_URI: ${{ secrets.ATLAS_MONGODB_URI }}
   FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -248,7 +249,7 @@ jobs:
 
       - name: Trigger remote deploy (pull + up)
         run: |
-          required=(JWT_SECRET SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM UPLOAD_DIR GEMINI_API_KEY)
+          required=(JWT_SECRET SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM UPLOAD_DIR ATLAS_MONGODB_URI GEMINI_API_KEY)
           for k in "${required[@]}"; do
             if [ -z "${!k:-}" ]; then
               echo "${k} is empty. Add it as a GitHub Actions secret before deploying."
@@ -291,6 +292,11 @@ jobs:
           print(shlex.quote(os.environ['UPLOAD_DIR']))
           PY
           )"
+          atlas_mongodb_uri_q="$(python3 - <<'PY'
+          import os, shlex
+          print(shlex.quote(os.environ['ATLAS_MONGODB_URI']))
+          PY
+          )"
           gemini_api_key_q="$(python3 - <<'PY'
           import os, shlex
           print(shlex.quote(os.environ['GEMINI_API_KEY']))
@@ -323,6 +329,7 @@ jobs:
             export SMTP_PASS=${smtp_pass_q}
             export SMTP_FROM=${smtp_from_q}
             export UPLOAD_DIR=${upload_dir_q}
+            export ATLAS_MONGODB_URI=${atlas_mongodb_uri_q}
             export GEMINI_API_KEY=${gemini_api_key_q}
             export FCM_SERVICE_ACCOUNT_JSON=${fcm_json_q}
             export SMTP_STARTTLS=true

@@ -14,6 +14,7 @@ import com.nexolab.model.TipoChat;
 import com.nexolab.model.Usuario;
 import com.nexolab.service.AuthService;
 import com.nexolab.service.ChatService;
+import com.nexolab.service.MongoAuditService;
 import com.nexolab.service.MessageService;
 import com.nexolab.service.TypingStore;
 import jakarta.servlet.ServletException;
@@ -44,6 +45,7 @@ public class MessageServlet extends HttpServlet {
 	private final ChatService    chatService    = new ChatService();
 	private final AuthService    authService    = new AuthService();
 	private final UserDAO        userDAO        = new UserDAO();
+	private final MongoAuditService auditService = MongoAuditService.getInstance();
 	private final ObjectMapper   objectMapper   = new ObjectMapper();
 	private final TypingStore    typingStore    = TypingStore.getInstance();
 
@@ -285,6 +287,19 @@ public class MessageServlet extends HttpServlet {
         // Validar que haya AL MENOS texto o archivos
         boolean tieneArchivos = archivos != null && !archivos.isEmpty();
         if ((contenido == null || contenido.trim().isBlank()) && !tieneArchivos) {
+			auditService.logMessageAction("MessageServlet", "MESSAGE_SEND", false,
+					ctx.chat.getIdChat(), ctx.chat.getNombreChat(),
+					ctx.chat.getTipoChat() == null ? null : ctx.chat.getTipoChat().toString(),
+					null,
+					ctx.usuario.getIdUsuario(), ctx.usuario.getEmail(),
+					null,
+					0,
+					false,
+					0,
+					req,
+					"Debes escribir un mensaje o adjuntar archivos",
+					"Debes escribir un mensaje o adjuntar archivos",
+					null);
             resp.setStatus(400);
             resp.getWriter().write("{\"message\":\"Debes escribir un mensaje o adjuntar archivos\"}");
             return;
@@ -296,13 +311,36 @@ public class MessageServlet extends HttpServlet {
         }
 
         // Si hay archivos: enviar con adjuntos, sino: enviar sin adjuntos
-        if (tieneArchivos) {
-            messageService.enviarMensajeConAdjuntos(ctx.chat, ctx.usuario, contenido,
-                new java.util.ArrayList<>(archivos), respondaMensajeId);
-        } else {
-            messageService.enviarMensaje(ctx.chat, ctx.usuario, contenido, respondaMensajeId);
-        }
-        resp.setStatus(201);
+		try {
+			if (tieneArchivos) {
+				messageService.enviarMensajeConAdjuntos(ctx.chat, ctx.usuario, contenido,
+					new java.util.ArrayList<>(archivos), respondaMensajeId);
+			} else {
+				messageService.enviarMensaje(ctx.chat, ctx.usuario, contenido, respondaMensajeId);
+			}
+			resp.setStatus(201);
+		} catch (Exception e) {
+			Map<String, Object> details = new HashMap<>();
+			details.put("replyToMessageId", respondaMensajeId);
+			details.put("attachmentCount", tieneArchivos ? archivos.size() : 0);
+			details.put("hasAttachments", tieneArchivos);
+			details.put("contentLength", contenido.length());
+			auditService.logMessageAction("MessageServlet", "MESSAGE_SEND", false,
+					ctx.chat.getIdChat(), ctx.chat.getNombreChat(),
+					ctx.chat.getTipoChat() == null ? null : ctx.chat.getTipoChat().toString(),
+					null,
+					ctx.usuario.getIdUsuario(), ctx.usuario.getEmail(),
+					respondaMensajeId,
+					contenido.length(),
+					tieneArchivos,
+					tieneArchivos ? archivos.size() : 0,
+					req,
+					"No se pudo enviar el mensaje",
+					e.getMessage(),
+					details);
+			resp.setStatus(500);
+			resp.getWriter().write("{\"message\":\"No se pudo enviar el mensaje\"}");
+		}
 	}
 
 	@Override
