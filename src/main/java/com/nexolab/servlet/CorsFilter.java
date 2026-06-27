@@ -22,6 +22,15 @@ public class CorsFilter implements Filter {
 			return;
 		}
 
+		HttpServletRequest req = (HttpServletRequest) request;
+		String contextPath = req.getContextPath();
+		String requestPath = req.getRequestURI().substring(contextPath.length());
+		if (requestPath.startsWith("/api/")) {
+			String targetPath = requestPath.substring(4);
+			req.getRequestDispatcher(targetPath).forward(request, response);
+			return;
+		}
+
 		chain.doFilter(request, response);
 	}
 }

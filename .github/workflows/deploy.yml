@@ -242,10 +242,12 @@ jobs:
         run: |
           set -euo pipefail
           ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=20 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "set -euo pipefail
-          mkdir -p ${EC2_APP_DIR}"
+          mkdir -p ${EC2_APP_DIR}/deploy"
 
           scp -i key.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ./deploy/docker-compose.ec2.yml ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/docker-compose.yml
-          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=20 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "sudo install -m 0644 /tmp/docker-compose.yml ${EC2_APP_DIR}/docker-compose.yml"
+          scp -i key.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ./deploy/nginx.conf ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/nginx.conf
+          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=20 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "sudo install -m 0644 /tmp/docker-compose.yml ${EC2_APP_DIR}/docker-compose.yml
+          sudo install -m 0644 /tmp/nginx.conf ${EC2_APP_DIR}/deploy/nginx.conf"
 
       - name: Trigger remote deploy (pull + up)
         run: |
@@ -335,8 +337,8 @@ jobs:
             export SMTP_STARTTLS=true
             mkdir -p \"${UPLOAD_DIR}\" || true
 
-            sudo env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose pull backend
-            sudo env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose up -d --pull always --force-recreate backend
+            sudo env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose pull backend nginx
+            sudo env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose up -d --pull always --force-recreate backend nginx
             sudo env DOCKER_CONFIG="/home/ec2-user/.docker" docker compose ps"; then
               exit 0
             fi
