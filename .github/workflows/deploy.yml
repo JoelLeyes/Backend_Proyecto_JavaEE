@@ -42,6 +42,27 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
+      - name: Resolve Docker Compose version
+        run: |
+          set -euo pipefail
+          compose_arch="$(uname -m)"
+          case "${compose_arch}" in
+            x86_64) compose_arch="x86_64" ;;
+            aarch64|arm64) compose_arch="aarch64" ;;
+            *) echo "Arquitectura no soportada: ${compose_arch}" >&2; exit 1 ;;
+          esac
+
+          compose_version="$(curl -fsSL https://api.github.com/repos/docker/compose/releases/latest | tr -d '\n' | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+          if [ -z "${compose_version}" ]; then
+            echo "No pude resolver la versión de Docker Compose." >&2
+            exit 1
+          fi
+
+          {
+            echo "DOCKER_COMPOSE_VERSION=${compose_version}"
+            echo "DOCKER_COMPOSE_ARCH=${compose_arch}"
+          } >> "$GITHUB_ENV"
+
       - name: Update EC2 Security Group to allow runner IP
         run: |
           set -euo pipefail
@@ -283,6 +304,13 @@ jobs:
           )"
           for attempt in 1 2 3 4 5; do
             if aws ecr get-login-password --region us-east-1 | ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ConnectTimeout=20 -i key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "set -euo pipefail
+            if ! docker compose version >/dev/null 2>&1; then
+            echo 'Docker Compose no está instalado. Instalando...'
+            sudo mkdir -p /usr/local/lib/docker/cli-plugins
+            sudo curl -fsSL "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${DOCKER_COMPOSE_ARCH}" -o /usr/local/lib/docker/cli-plugins/docker-compose
+            sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+            fi
+            docker compose version
             docker login --username AWS --password-stdin ${ECR_REGISTRY}
             mkdir -p ${EC2_APP_DIR}
             cd ${EC2_APP_DIR}
