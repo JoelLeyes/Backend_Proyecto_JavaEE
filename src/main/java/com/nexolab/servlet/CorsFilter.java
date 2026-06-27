@@ -24,7 +24,18 @@ public class CorsFilter implements Filter {
 
 		HttpServletRequest req = (HttpServletRequest) request;
 		String contextPath = req.getContextPath();
-		String requestPath = req.getRequestURI().substring(contextPath.length());
+		if (contextPath == null) {
+			contextPath = "";
+		}
+
+		String requestUri = req.getRequestURI();
+		if (requestUri == null) {
+			requestUri = "";
+		}
+
+		String requestPath = requestUri.startsWith(contextPath)
+				? requestUri.substring(contextPath.length())
+				: requestUri;
 		if (requestPath.startsWith("/api/")) {
 			String targetPath = requestPath.substring(4);
 			req.getRequestDispatcher(targetPath).forward(request, response);
