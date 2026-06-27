@@ -326,6 +326,14 @@ jobs:
             docker login --username AWS --password-stdin ${ECR_REGISTRY}
             sudo mkdir -p ${EC2_APP_DIR}
             cd ${EC2_APP_DIR}
+
+            if [ -f /home/ec2-user/app/certs/nexolab.cloud-ip.cc/certificate.crt ] && [ -f /home/ec2-user/app/certs/nexolab.cloud-ip.cc/ca_bundle.crt ]; then
+              sudo sh -c 'set -euo pipefail; CERT_DIR=/home/ec2-user/app/certs/nexolab.cloud-ip.cc; cat "$CERT_DIR/certificate.crt" "$CERT_DIR/ca_bundle.crt" > "$CERT_DIR/fullchain.pem"; chmod 644 "$CERT_DIR/fullchain.pem"'
+            else
+              echo 'Faltan certificate.crt o ca_bundle.crt en /home/ec2-user/app/certs/nexolab.cloud-ip.cc' >&2
+              exit 1
+            fi
+
             rm -f .env || true
 
             export JWT_SECRET=${jwt_q}
