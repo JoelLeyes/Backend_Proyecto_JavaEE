@@ -48,6 +48,8 @@ jobs:
           aws-region: us-east-1
 
       - name: Resolve Docker Compose version
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           compose_arch="$(uname -m)"
@@ -57,7 +59,13 @@ jobs:
             *) echo "Arquitectura no soportada: ${compose_arch}" >&2; exit 1 ;;
           esac
 
-          compose_version="$(curl -fsSL https://api.github.com/repos/docker/compose/releases/latest | tr -d '\n' | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+          compose_version="$(curl -fsSL \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/docker/compose/releases/latest \
+            | tr -d '\n' \
+            | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
           if [ -z "${compose_version}" ]; then
             echo "No pude resolver la versión de Docker Compose." >&2
             exit 1
