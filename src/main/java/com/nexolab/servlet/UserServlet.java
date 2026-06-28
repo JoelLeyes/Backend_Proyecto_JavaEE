@@ -199,8 +199,8 @@ public class UserServlet extends HttpServlet {
             return;
         }
 
+        userDAO.updateTipoEstado(current.getIdUsuario(), nuevoEstado);
         current.setTipoEstado(nuevoEstado);
-        userDAO.update(current);
 
         resp.getWriter().write(objectMapper.writeValueAsString(usuarioToMap(current)));
     }

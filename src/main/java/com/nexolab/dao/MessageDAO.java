@@ -43,6 +43,7 @@ public class MessageDAO {
 				.getResultList();
 		em.close();
 
+		messages.removeIf(m -> m == null || m.getFechaEnviado() == null);
 		messages.sort(Comparator.comparing(Mensaje::getFechaEnviado));
 		return messages;
 	}

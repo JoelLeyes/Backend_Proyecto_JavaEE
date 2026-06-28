@@ -1,5 +1,6 @@
 package com.nexolab.dao;
 
+import com.nexolab.model.TipoEstado;
 import com.nexolab.model.Usuario;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -138,6 +139,17 @@ public class UserDAO {
 		EntityManager em = emf.createEntityManager();
 		em.getTransaction().begin();
 		em.merge(user);
+		em.getTransaction().commit();
+		em.close();
+	}
+
+	public void updateTipoEstado(Long userId, TipoEstado tipoEstado) {
+		EntityManager em = emf.createEntityManager();
+		em.getTransaction().begin();
+		em.createQuery("UPDATE Usuario u SET u.tipoEstado = :tipoEstado WHERE u.idUsuario = :userId")
+				.setParameter("tipoEstado", tipoEstado)
+				.setParameter("userId", userId)
+				.executeUpdate();
 		em.getTransaction().commit();
 		em.close();
 	}

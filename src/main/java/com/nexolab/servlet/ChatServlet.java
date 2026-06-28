@@ -86,7 +86,7 @@ public class ChatServlet extends HttpServlet {
 			String displayName = c.getNombreChat();
 			if (c.getTipoChat() == TipoChat.PRIVADO && c.getParticipantes() != null) {
 				displayName = c.getParticipantes().stream()
-						.filter(p -> !p.getIdUsuario().equals(usuario.getIdUsuario()))
+						.filter(p -> p != null && p.getIdUsuario() != null && !p.getIdUsuario().equals(usuario.getIdUsuario()))
 						.map(p -> (p.getNombre() + " " + p.getApellido()).trim())
 						.findFirst()
 						.orElse(c.getNombreChat());

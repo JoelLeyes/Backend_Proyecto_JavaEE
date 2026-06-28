@@ -25,19 +25,24 @@ public class ChatService {
 		Long userId = usuario.getIdUsuario();
 
 		for (Chat c : chats) {
-			Mensaje ultimo = c.getMensajes().stream()
-					.max(Comparator.comparing(Mensaje::getFechaEnviado))
-					.orElse(null);
-			if (ultimo != null) {
-				c.setUltimoMensaje(ultimo.getContenido());
-				LocalDateTime ldt = LocalDateTime.ofInstant(ultimo.getFechaEnviado().toInstant(), ZoneId.systemDefault());
-				c.setHoraUltimoMensaje(ldt);
+			try {
+				Mensaje ultimo = c.getMensajes().stream()
+						.filter(m -> m != null && m.getFechaEnviado() != null)
+						.max(Comparator.comparing(Mensaje::getFechaEnviado))
+						.orElse(null);
+				if (ultimo != null) {
+					c.setUltimoMensaje(ultimo.getContenido());
+					LocalDateTime ldt = LocalDateTime.ofInstant(ultimo.getFechaEnviado().toInstant(), ZoneId.systemDefault());
+					c.setHoraUltimoMensaje(ldt);
+				}
+				// Calcular mensajes sin leer usando ultima_lectura del Participa del usuario
+				Participa participa = chatDAO.findParticipacion(c.getIdChat(), userId);
+				java.util.Date ultimaLectura = participa != null ? participa.getUltimaLectura() : null;
+				long unread = chatDAO.countUnread(c.getIdChat(), userId, ultimaLectura);
+				c.setMensajesSinLeer((int) Math.min(unread, 99));
+			} catch (RuntimeException ex) {
+				c.setMensajesSinLeer(0);
 			}
-			// Calcular mensajes sin leer usando ultima_lectura del Participa del usuario
-			Participa participa = chatDAO.findParticipacion(c.getIdChat(), userId);
-			java.util.Date ultimaLectura = participa != null ? participa.getUltimaLectura() : null;
-			long unread = chatDAO.countUnread(c.getIdChat(), userId, ultimaLectura);
-			c.setMensajesSinLeer((int) Math.min(unread, 99));
 		}
 
 		return chats;
