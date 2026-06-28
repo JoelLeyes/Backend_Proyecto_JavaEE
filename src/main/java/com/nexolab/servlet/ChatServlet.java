@@ -8,6 +8,7 @@ import com.nexolab.model.TipoChat;
 import com.nexolab.model.Usuario;
 import com.nexolab.service.AuthService;
 import com.nexolab.service.ChatService;
+import com.nexolab.service.MongoAuditService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -25,6 +26,7 @@ public class ChatServlet extends HttpServlet {
 	private final ChatService chatService = new ChatService();
 	private final AuthService authService = new AuthService();
 	private final UserDAO userDAO = new UserDAO();
+	private final MongoAuditService auditService = MongoAuditService.getInstance();
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	private static String firstNonBlank(Object... values) {
@@ -113,6 +115,20 @@ public class ChatServlet extends HttpServlet {
 		try {
 			body = objectMapper.readValue(req.getInputStream(), new TypeReference<Map<String, Object>>() {});
 		} catch (Exception e) {
+			auditService.logGroupAction(
+				"ChatServlet",
+				"GROUP_CREATE_ERROR",
+				false,
+				null,
+				null,
+				creador.getIdUsuario(),
+				creador.getEmail(),
+				null,
+				req,
+				"Error al leer el cuerpo JSON para crear el grupo",
+				e.getMessage(),
+				null
+			);
 			resp.setStatus(400);
 			resp.getWriter().write("{\"message\":\"Cuerpo JSON inválido\"}");
 			return;
@@ -123,6 +139,20 @@ public class ChatServlet extends HttpServlet {
 		if ("GRUPAL".equalsIgnoreCase(tipo)) {
 			String nombre = firstNonBlank(body.get("nombre"), body.get("nombreChat"), body.get("name"));
 			if (nombre == null || nombre.isBlank()) {
+				auditService.logGroupAction(
+					"ChatServlet",
+					"GROUP_CREATE_ERROR",
+					false,
+					null,
+					nombre,
+					creador.getIdUsuario(),
+					creador.getEmail(),
+					null,
+					req,
+					"Falta el nombre del grupo",
+					"nombre requerido para chat grupal",
+					null
+				);
 				resp.setStatus(400);
 				resp.getWriter().write("{\"message\":\"nombre requerido para chat grupal\"}");
 				return;
@@ -150,10 +180,39 @@ public class ChatServlet extends HttpServlet {
 			try {
 				chat = chatService.crearChatGrupal(creador, nombre, miembros);
 			} catch (Exception e) {
+				auditService.logGroupAction(
+					"ChatServlet",
+					"GROUP_CREATE_ERROR",
+					false,
+					null,
+					nombre,
+					creador.getIdUsuario(),
+					creador.getEmail(),
+					miembros.size(),
+					req,
+					"No se pudo crear el grupo",
+					e.getMessage(),
+					null
+				);
 				resp.setStatus(500);
 				resp.getWriter().write("{\"message\":\"No se pudo crear el chat grupal\"}");
 				return;
 			}
+
+			auditService.logGroupAction(
+				"ChatServlet",
+				"GROUP_CREATE",
+				true,
+				chat.getIdChat(),
+				chat.getNombreChat(),
+				creador.getIdUsuario(),
+				creador.getEmail(),
+				miembros.size(),
+				req,
+				"Grupo creado correctamente",
+				null,
+				null
+			);
 			Map<String, Object> response = new HashMap<>();
 			response.put("idChat", chat.getIdChat());
 			response.put("nombreChat", chat.getNombreChat());
@@ -167,6 +226,19 @@ public class ChatServlet extends HttpServlet {
 		Object otroIdObj = body.containsKey("otroUsuarioId") ? body.get("otroUsuarioId") :
 				(body.containsKey("usuarioId") ? body.get("usuarioId") : body.get("userId"));
 		if (otroIdObj == null) {
+			auditService.logChatAction(
+				"ChatServlet",
+				"CHAT_CREATE_ERROR",
+				false,
+				null,
+				null,
+				creador.getIdUsuario(),
+				creador.getEmail(),
+				null,
+				null,
+				"Falta otroUsuarioId",
+				"otroUsuarioId requerido"
+			);
 			resp.setStatus(400);
 			resp.getWriter().write("{\"message\":\"otroUsuarioId requerido\"}");
 			return;
@@ -174,6 +246,19 @@ public class ChatServlet extends HttpServlet {
 
 		Long otroId = toLongId(otroIdObj);
 		if (otroId == null) {
+			auditService.logChatAction(
+				"ChatServlet",
+				"CHAT_CREATE_ERROR",
+				false,
+				null,
+				null,
+				creador.getIdUsuario(),
+				creador.getEmail(),
+				null,
+				null,
+				"otroUsuarioId inválido",
+				"otroUsuarioId inválido"
+			);
 			resp.setStatus(400);
 			resp.getWriter().write("{\"message\":\"otroUsuarioId inválido\"}");
 			return;
@@ -181,6 +266,19 @@ public class ChatServlet extends HttpServlet {
 
 		Usuario otro = userDAO.findById(otroId);
 		if (otro == null) {
+			auditService.logChatAction(
+				"ChatServlet",
+				"CHAT_CREATE_ERROR",
+				false,
+				null,
+				null,
+				creador.getIdUsuario(),
+				creador.getEmail(),
+				otroId,
+				null,
+				"Usuario no encontrado",
+				"Usuario no encontrado"
+			);
 			resp.setStatus(404);
 			resp.getWriter().write("{\"message\":\"Usuario no encontrado\"}");
 			return;
@@ -190,10 +288,37 @@ public class ChatServlet extends HttpServlet {
 		try {
 			chat = chatService.crearChatPrivado(creador, otro);
 		} catch (Exception e) {
+			auditService.logChatAction(
+				"ChatServlet",
+				"CHAT_CREATE_ERROR",
+				false,
+				null,
+				null,
+				creador.getIdUsuario(),
+				creador.getEmail(),
+				otro.getIdUsuario(),
+				otro.getEmail(),
+				"No se pudo crear el chat privado",
+				e.getMessage()
+			);
 			resp.setStatus(500);
 			resp.getWriter().write("{\"message\":\"No se pudo crear el chat privado\"}");
 			return;
 		}
+
+		auditService.logChatAction(
+			"ChatServlet",
+			"CHAT_CREATE",
+			true,
+			chat.getIdChat(),
+			chat.getNombreChat(),
+			creador.getIdUsuario(),
+			creador.getEmail(),
+			otro.getIdUsuario(),
+			otro.getEmail(),
+			"Chat privado creado correctamente",
+			null
+		);
 
 		String nombreParaCreador = (otro.getNombre() + " " + otro.getApellido()).trim();
 		Map<String, Object> response = new HashMap<>();

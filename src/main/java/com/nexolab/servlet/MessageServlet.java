@@ -287,19 +287,17 @@ public class MessageServlet extends HttpServlet {
         // Validar que haya AL MENOS texto o archivos
         boolean tieneArchivos = archivos != null && !archivos.isEmpty();
         if ((contenido == null || contenido.trim().isBlank()) && !tieneArchivos) {
+			boolean groupChat = TipoChat.GRUPAL.equals(ctx.chat.getTipoChat());
+			String recipientEmail = groupChat ? null : MongoAuditService.primaryRecipientEmail(ctx.chat, ctx.usuario.getIdUsuario());
+			List<String> recipientEmails = groupChat ? MongoAuditService.recipientEmails(ctx.chat, ctx.usuario.getIdUsuario()) : null;
 			auditService.logMessageAction("MessageServlet", "MESSAGE_SEND", false,
 					ctx.chat.getIdChat(), ctx.chat.getNombreChat(),
 					ctx.chat.getTipoChat() == null ? null : ctx.chat.getTipoChat().toString(),
-					null,
 					ctx.usuario.getIdUsuario(), ctx.usuario.getEmail(),
-					null,
-					0,
-					false,
-					0,
-					req,
+					recipientEmail,
+					recipientEmails,
 					"Debes escribir un mensaje o adjuntar archivos",
-					"Debes escribir un mensaje o adjuntar archivos",
-					null);
+					"Debes escribir un mensaje o adjuntar archivos");
             resp.setStatus(400);
             resp.getWriter().write("{\"message\":\"Debes escribir un mensaje o adjuntar archivos\"}");
             return;
@@ -320,24 +318,17 @@ public class MessageServlet extends HttpServlet {
 			}
 			resp.setStatus(201);
 		} catch (Exception e) {
-			Map<String, Object> details = new HashMap<>();
-			details.put("replyToMessageId", respondaMensajeId);
-			details.put("attachmentCount", tieneArchivos ? archivos.size() : 0);
-			details.put("hasAttachments", tieneArchivos);
-			details.put("contentLength", contenido.length());
+			boolean groupChat = TipoChat.GRUPAL.equals(ctx.chat.getTipoChat());
+			String recipientEmail = groupChat ? null : MongoAuditService.primaryRecipientEmail(ctx.chat, ctx.usuario.getIdUsuario());
+			List<String> recipientEmails = groupChat ? MongoAuditService.recipientEmails(ctx.chat, ctx.usuario.getIdUsuario()) : null;
 			auditService.logMessageAction("MessageServlet", "MESSAGE_SEND", false,
 					ctx.chat.getIdChat(), ctx.chat.getNombreChat(),
 					ctx.chat.getTipoChat() == null ? null : ctx.chat.getTipoChat().toString(),
-					null,
 					ctx.usuario.getIdUsuario(), ctx.usuario.getEmail(),
-					respondaMensajeId,
-					contenido.length(),
-					tieneArchivos,
-					tieneArchivos ? archivos.size() : 0,
-					req,
+					recipientEmail,
+					recipientEmails,
 					"No se pudo enviar el mensaje",
-					e.getMessage(),
-					details);
+					e.getMessage());
 			resp.setStatus(500);
 			resp.getWriter().write("{\"message\":\"No se pudo enviar el mensaje\"}");
 		}

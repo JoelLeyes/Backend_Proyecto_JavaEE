@@ -66,24 +66,23 @@ public class MessageService {
 
 		messageDAO.save(mensaje);
 		pushNotificationService.notifyMessage(chat, emisor, mensaje);
+		boolean groupChat = TipoChat.GRUPAL.equals(chat.getTipoChat());
+		String chatType = chat.getTipoChat() == null ? null : chat.getTipoChat().toString();
+		String recipientEmail = groupChat ? null : MongoAuditService.primaryRecipientEmail(chat, emisor.getIdUsuario());
+		List<String> recipientEmails = groupChat ? MongoAuditService.recipientEmails(chat, emisor.getIdUsuario()) : null;
 		auditService.logMessageAction(
 			"MessageService",
 			"MESSAGE_SEND",
 			true,
 			chat.getIdChat(),
 			chat.getNombreChat(),
-			chat.getTipoChat() == null ? null : chat.getTipoChat().toString(),
-			mensaje.getIdMensaje(),
+			chatType,
 			emisor.getIdUsuario(),
 			emisor.getEmail(),
-			respondaMensajeId,
-			contenido.length(),
-			false,
-			0,
-			null,
+			recipientEmail,
+			recipientEmails,
 			"Mensaje enviado correctamente",
-			null,
-			buildMessageMetadata(contenido, 0, false, respondaMensajeId, 0)
+			null
 		);
 		return mensaje;
 	}
@@ -154,25 +153,23 @@ public class MessageService {
 		// Guardar mensaje con adjunto en BD
 		messageDAO.save(mensaje);
 		pushNotificationService.notifyMessage(chat, emisor, mensaje);
-		int attachmentCount = mensaje.getAdjuntos() == null ? 0 : mensaje.getAdjuntos().size();
+		boolean groupChat = TipoChat.GRUPAL.equals(chat.getTipoChat());
+		String chatType = chat.getTipoChat() == null ? null : chat.getTipoChat().toString();
+		String recipientEmail = groupChat ? null : MongoAuditService.primaryRecipientEmail(chat, emisor.getIdUsuario());
+		List<String> recipientEmails = groupChat ? MongoAuditService.recipientEmails(chat, emisor.getIdUsuario()) : null;
 		auditService.logMessageAction(
 			"MessageService",
 			"MESSAGE_SEND",
 			true,
 			chat.getIdChat(),
 			chat.getNombreChat(),
-			chat.getTipoChat() == null ? null : chat.getTipoChat().toString(),
-			mensaje.getIdMensaje(),
+			chatType,
 			emisor.getIdUsuario(),
 			emisor.getEmail(),
-			null,
-			contenido.length(),
-			attachmentCount > 0,
-			attachmentCount,
-			null,
+			recipientEmail,
+			recipientEmails,
 			"Mensaje enviado correctamente",
-			null,
-				buildMessageMetadata(contenido, attachmentCount, attachmentCount > 0, null, archivo != null && archivo.getSize() > 0 ? 1 : 0)
+			null
 		);
 		return mensaje;
 	}
@@ -257,25 +254,23 @@ public class MessageService {
 		// Guardar mensaje con adjuntos en BD
 		messageDAO.save(mensaje);
 		pushNotificationService.notifyMessage(chat, emisor, mensaje);
-		int attachmentCount = mensaje.getAdjuntos() == null ? 0 : mensaje.getAdjuntos().size();
+		boolean groupChat = TipoChat.GRUPAL.equals(chat.getTipoChat());
+		String chatType = chat.getTipoChat() == null ? null : chat.getTipoChat().toString();
+		String recipientEmail = groupChat ? null : MongoAuditService.primaryRecipientEmail(chat, emisor.getIdUsuario());
+		List<String> recipientEmails = groupChat ? MongoAuditService.recipientEmails(chat, emisor.getIdUsuario()) : null;
 		auditService.logMessageAction(
 			"MessageService",
 			"MESSAGE_SEND",
 			true,
 			chat.getIdChat(),
 			chat.getNombreChat(),
-			chat.getTipoChat() == null ? null : chat.getTipoChat().toString(),
-			mensaje.getIdMensaje(),
+			chatType,
 			emisor.getIdUsuario(),
 			emisor.getEmail(),
-			respondaMensajeId,
-			contenido.length(),
-			attachmentCount > 0,
-			attachmentCount,
-			null,
+			recipientEmail,
+			recipientEmails,
 			"Mensaje enviado correctamente",
-			null,
-			buildMessageMetadata(contenido, attachmentCount, attachmentCount > 0, respondaMensajeId, archivos == null ? 0 : archivos.size())
+			null
 		);
 		return mensaje;
 	}
