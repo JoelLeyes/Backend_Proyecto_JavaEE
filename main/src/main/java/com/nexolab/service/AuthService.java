@@ -8,7 +8,7 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
 
 import java.util.Date;
 import java.util.UUID;
-
+//
 public class AuthService {
     private final UserDAO userDAO = new UserDAO();
     public Usuario register(String nombre, String apellido, String email, String password, String fotoPerfilUrl) throws Exception {
