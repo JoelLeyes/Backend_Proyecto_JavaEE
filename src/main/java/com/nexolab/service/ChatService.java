@@ -1,6 +1,7 @@
 package com.nexolab.service;
 
 import com.nexolab.dao.ChatDAO;
+import com.nexolab.dao.MessageDAO;
 import com.nexolab.model.Chat;
 import com.nexolab.model.Mensaje;
 import com.nexolab.model.Participa;
@@ -19,6 +20,7 @@ import java.util.Set;
 
 public class ChatService {
 	private final ChatDAO chatDAO = new ChatDAO();
+	private final MessageDAO messageDAO = new MessageDAO();
 
 	public List<Chat> obtenerChatsDelUsuario(Usuario usuario) {
 		List<Chat> chats = chatDAO.findByUsuario(usuario);
@@ -26,10 +28,7 @@ public class ChatService {
 
 		for (Chat c : chats) {
 			try {
-				Mensaje ultimo = c.getMensajes().stream()
-						.filter(m -> m != null && m.getFechaEnviado() != null)
-						.max(Comparator.comparing(Mensaje::getFechaEnviado))
-						.orElse(null);
+				Mensaje ultimo = messageDAO.findLatestByChatId(c.getIdChat());
 				if (ultimo != null) {
 					c.setUltimoMensaje(ultimo.getContenido());
 					LocalDateTime ldt = LocalDateTime.ofInstant(ultimo.getFechaEnviado().toInstant(), ZoneId.systemDefault());

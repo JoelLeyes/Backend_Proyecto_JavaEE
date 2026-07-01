@@ -83,4 +83,20 @@ public class MessageDAO {
 		em.close();
 		return messages;
 	}
+
+	public Mensaje findLatestByChatId(Long chatId) {
+		EntityManager em = emf.createEntityManager();
+		Mensaje message = em.createQuery(
+				"SELECT m FROM Mensaje m " +
+				"WHERE m.chat.idChat = :chatId " +
+				"ORDER BY m.fechaEnviado DESC",
+				Mensaje.class)
+				.setParameter("chatId", chatId)
+				.setMaxResults(1)
+				.getResultStream()
+				.findFirst()
+				.orElse(null);
+		em.close();
+		return message;
+	}
 }
