@@ -84,14 +84,21 @@ public class ChatServlet extends HttpServlet {
 
 			// Para chats privados: mostrar el nombre del OTRO participante, no el guardado en DB
 			String displayName = c.getNombreChat();
+			String photoUrl = null;
 			if (c.getTipoChat() == TipoChat.PRIVADO && c.getParticipantes() != null) {
-				displayName = c.getParticipantes().stream()
+				Usuario otro = c.getParticipantes().stream()
 						.filter(p -> p != null && p.getIdUsuario() != null && !p.getIdUsuario().equals(usuario.getIdUsuario()))
-						.map(p -> (p.getNombre() + " " + p.getApellido()).trim())
 						.findFirst()
-						.orElse(c.getNombreChat());
+						.orElse(null);
+				if (otro != null) {
+					displayName = (otro.getNombre() + " " + otro.getApellido()).trim();
+					photoUrl = otro.getFotoPerfilUrl();
+				}
 			}
 			map.put("nombreChat", displayName);
+			if (photoUrl != null && !photoUrl.isBlank()) {
+				map.put("fotoPerfilUrl", photoUrl);
+			}
 			map.put("tipoChat", c.getTipoChat() == null ? null : c.getTipoChat().toString());
 			map.put("ultimoMensaje", c.getUltimoMensaje());
 			map.put("horaUltimoMensaje", c.getHoraUltimoMensaje() == null ? null : c.getHoraUltimoMensaje().toString());
