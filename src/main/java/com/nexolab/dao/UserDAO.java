@@ -143,6 +143,30 @@ public class UserDAO {
 		em.close();
 	}
 
+	public void updatePasswordReset(Long userId, String passwordHash, String passwordSalt) {
+		EntityManager em = emf.createEntityManager();
+		try {
+			em.getTransaction().begin();
+			int updated = em.createQuery(
+					"UPDATE Usuario u SET u.passwordHash = :passwordHash, u.passwordSalt = :passwordSalt WHERE u.idUsuario = :userId")
+					.setParameter("passwordHash", passwordHash)
+					.setParameter("passwordSalt", passwordSalt)
+					.setParameter("userId", userId)
+					.executeUpdate();
+			if (updated == 0) {
+				throw new IllegalStateException("No se encontró el usuario para actualizar la contraseña");
+			}
+			em.getTransaction().commit();
+		} catch (RuntimeException e) {
+			if (em.getTransaction().isActive()) {
+				em.getTransaction().rollback();
+			}
+			throw e;
+		} finally {
+			em.close();
+		}
+	}
+
 	public void updateTipoEstado(Long userId, TipoEstado tipoEstado) {
 		EntityManager em = emf.createEntityManager();
 		em.getTransaction().begin();

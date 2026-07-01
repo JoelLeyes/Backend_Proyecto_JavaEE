@@ -176,6 +176,7 @@ public class AuthServlet extends HttpServlet {
 		details.put("userFound", user != null);
 		if (user != null) {
 			String tempPassword = generateTempPassword();
+			String tempPasswordHash = BCrypt.withDefaults().hashToString(12, tempPassword.toCharArray());
 			String subject = "NexoLab - Recuperación de contraseña";
 			String msg = "Hola,\n\n" +
 					"Se generó una contraseña temporal para tu cuenta.\n\n" +
@@ -186,16 +187,16 @@ public class AuthServlet extends HttpServlet {
 			try {
 				// Primero enviamos; si falla SMTP, no tocamos el password (evita lockout).
 				emailService.sendTextEmail(cfg, email, subject, msg);
-				user.setPasswordHash(BCrypt.withDefaults().hashToString(12, tempPassword.toCharArray()));
-				userDAO.update(user);
+				userDAO.updatePasswordReset(user.getIdUsuario(), tempPasswordHash, "BCRYPT");
 				details.put("emailDelivered", true);
 			} catch (Exception e) {
 				resp.setStatus(500);
 				details.put("emailDelivered", false);
+				details.put("updateSucceeded", false);
 				auditService.logUserAction("AuthServlet", "FORGOT_PASSWORD", false,
 						user.getIdUsuario(), email, req,
 						"No se pudo completar la recuperación de contraseña", e.getMessage(), details);
-				resp.getWriter().write("{\"message\":\"No se pudo enviar el correo de recuperación\"}");
+				resp.getWriter().write("{\"message\":\"No se pudo completar la recuperación de contraseña\"}");
 				return;
 			}
 		}
