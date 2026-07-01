@@ -195,6 +195,7 @@ public class AdminServlet extends HttpServlet {
         map.put("nombre", u.getNombre());
         map.put("apellido", u.getApellido());
         map.put("email", u.getEmail());
+        map.put("fotoPerfilUrl", u.getFotoPerfilUrl());
         map.put("cargo", u.getCargo());
         map.put("sector", u.getSector() == null ? null : u.getSector().toString());
         map.put("tipoEstado", u.getTipoEstado() == null ? null : u.getTipoEstado().toString());
