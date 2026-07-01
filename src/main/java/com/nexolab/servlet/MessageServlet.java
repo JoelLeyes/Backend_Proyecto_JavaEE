@@ -103,6 +103,7 @@ public class MessageServlet extends HttpServlet {
 				map.put("idUsuario", u.getIdUsuario());
 				map.put("nombre", u.getNombre());
 				map.put("apellido", u.getApellido());
+				map.put("fotoPerfilUrl", u.getFotoPerfilUrl());
 				map.put("rol", p.getRolUsuario() == null ? null : p.getRolUsuario().toString());
 				map.put("tipoEstado", u.getTipoEstado() == null ? null : u.getTipoEstado().toString());
 				return map;
