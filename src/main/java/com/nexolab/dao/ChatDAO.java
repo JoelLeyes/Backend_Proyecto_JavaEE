@@ -167,4 +167,15 @@ public class ChatDAO {
 		em.getTransaction().commit();
 		em.close();
 	}
+
+	public void updateFotoGrupo(Long chatId, String fotoUrl) {
+		EntityManager em = emf.createEntityManager();
+		em.getTransaction().begin();
+		Chat chat = em.find(Chat.class, chatId);
+		if (chat != null) {
+			chat.setFotoGrupoUrl(fotoUrl);
+		}
+		em.getTransaction().commit();
+		em.close();
+	}
 }

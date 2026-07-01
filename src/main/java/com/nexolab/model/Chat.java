@@ -22,6 +22,9 @@ public class Chat {
     @Enumerated(EnumType.STRING)
     private TipoChat tipoChat;
 
+    @Column(name = "foto_grupo_url", columnDefinition = "TEXT")
+    private String fotoGrupoUrl;
+
     // no hay que hacer nada con jpa?
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "fecha_creacion", nullable = false)
@@ -56,6 +59,7 @@ public class Chat {
     public void setIdChat(Long idChat) { this.idChat = idChat; }
     public void setNombreChat(String nombreChat) { this.nombreChat = nombreChat; }
     public void setTipoChat(TipoChat tipoChat) { this.tipoChat = tipoChat; }
+    public void setFotoGrupoUrl(String fotoGrupoUrl) { this.fotoGrupoUrl = (fotoGrupoUrl == null || fotoGrupoUrl.isBlank()) ? null : fotoGrupoUrl.trim(); }
     public void setFechaCreacion(Date fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public void setParticipaciones(Set<Participa> participaciones) {
         this.participaciones = (participaciones == null) ? new HashSet<>() : participaciones;
@@ -72,6 +76,7 @@ public class Chat {
     public Long getIdChat() { return idChat; }
     public String getNombreChat() { return nombreChat; }
     public TipoChat getTipoChat() { return tipoChat; }
+    public String getFotoGrupoUrl() { return fotoGrupoUrl; }
     public Date getFechaCreacion() { return fechaCreacion; }
     public Set<Usuario> getParticipantes() { return participantes; }
     public Set<Participa> getParticipaciones() { return participaciones; }

@@ -95,6 +95,18 @@ public class MessageServlet extends HttpServlet {
 			return;
 		}
 
+		if ("foto".equals(ctx.subPath)) {
+			if (ctx.chat.getTipoChat() != TipoChat.GRUPAL) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"Solo chats grupales\"}");
+				return;
+			}
+			Map<String, Object> payload = new HashMap<>();
+			payload.put("fotoGrupoUrl", ctx.chat.getFotoGrupoUrl());
+			resp.getWriter().write(objectMapper.writeValueAsString(payload));
+			return;
+		}
+
 		if ("participantes".equals(ctx.subPath)) {
 			List<Participa> participaciones = chatService.obtenerParticipaciones(ctx.chat.getIdChat());
 			List<Map<String, Object>> list = participaciones.stream().map(p -> {
@@ -212,6 +224,48 @@ public class MessageServlet extends HttpServlet {
 			String nombre = (ctx.usuario.getNombre() + " " + ctx.usuario.getApellido()).trim();
 			typingStore.markTyping(ctx.chat.getIdChat(), ctx.usuario.getIdUsuario(), nombre);
 			resp.setStatus(200);
+			return;
+		}
+
+		if ("foto".equals(ctx.subPath)) {
+			if (ctx.chat.getTipoChat() != TipoChat.GRUPAL) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"Solo chats grupales\"}");
+				return;
+			}
+			if (!chatService.esAdmin(ctx.chat.getIdChat(), ctx.usuario)) {
+				resp.setStatus(403);
+				resp.getWriter().write("{\"message\":\"Solo el administrador puede cambiar la foto del grupo\"}");
+				return;
+			}
+
+			jakarta.servlet.http.Part fotoPart;
+			try {
+				fotoPart = req.getPart("foto");
+			} catch (Exception e) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"foto requerida\"}");
+				return;
+			}
+			if (fotoPart == null || fotoPart.getSize() == 0) {
+				resp.setStatus(400);
+				resp.getWriter().write("{\"message\":\"foto requerida\"}");
+				return;
+			}
+
+			try {
+				String fotoUrl = com.nexolab.util.FileStorageUtil.guardarArchivo(fotoPart);
+				String saved = chatService.actualizarFotoGrupo(ctx.chat.getIdChat(), ctx.usuario, fotoUrl);
+				Map<String, Object> payload = new HashMap<>();
+				payload.put("fotoGrupoUrl", saved);
+				resp.getWriter().write(objectMapper.writeValueAsString(payload));
+			} catch (SecurityException e) {
+				resp.setStatus(403);
+				resp.getWriter().write("{\"message\":\"" + e.getMessage() + "\"}");
+			} catch (Exception e) {
+				resp.setStatus(500);
+				resp.getWriter().write("{\"message\":\"No se pudo actualizar la foto del grupo\"}");
+			}
 			return;
 		}
 
@@ -431,7 +485,7 @@ public class MessageServlet extends HttpServlet {
 			return null;
 		}
 		String subPath = parts[2];
-		if (!java.util.Set.of("messages","participantes","nombre","typing","reacciones").contains(subPath)) {
+		if (!java.util.Set.of("messages","participantes","nombre","typing","reacciones","foto").contains(subPath)) {
 			resp.setStatus(404);
 			return null;
 		}

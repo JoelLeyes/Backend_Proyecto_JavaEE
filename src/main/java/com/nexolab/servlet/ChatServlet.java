@@ -99,6 +99,7 @@ public class ChatServlet extends HttpServlet {
 			if (photoUrl != null && !photoUrl.isBlank()) {
 				map.put("fotoPerfilUrl", photoUrl);
 			}
+			map.put("fotoGrupoUrl", c.getFotoGrupoUrl());
 			map.put("tipoChat", c.getTipoChat() == null ? null : c.getTipoChat().toString());
 			map.put("ultimoMensaje", c.getUltimoMensaje());
 			map.put("horaUltimoMensaje", c.getHoraUltimoMensaje() == null ? null : c.getHoraUltimoMensaje().toString());

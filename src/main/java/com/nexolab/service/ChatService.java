@@ -112,6 +112,18 @@ public class ChatService {
 		chatDAO.updateNombre(chatId, nuevoNombre);
 	}
 
+	public String actualizarFotoGrupo(Long chatId, Usuario usuario, String fotoUrl) {
+		Chat chat = obtenerChatPorId(chatId);
+		if (chat == null || chat.getTipoChat() != TipoChat.GRUPAL) {
+			throw new IllegalArgumentException("Solo chats grupales");
+		}
+		if (!esAdmin(chatId, usuario)) {
+			throw new SecurityException("Solo el administrador puede cambiar la foto del grupo");
+		}
+		chatDAO.updateFotoGrupo(chatId, fotoUrl);
+		return fotoUrl;
+	}
+
 	public Chat crearChatPrivado(Usuario creador, Usuario otro) {
 		Chat existing = chatDAO.findPrivateChat(creador.getIdUsuario(), otro.getIdUsuario());
 		if (existing != null) return existing;
