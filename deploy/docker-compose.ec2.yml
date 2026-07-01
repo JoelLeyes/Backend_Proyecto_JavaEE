@@ -7,10 +7,10 @@ services:
       - "8080"
     environment:
       JWT_SECRET: "${JWT_SECRET}"
-      SMTP_FROM: "${SMTP_FROM}"
+      SMTP_FROM: "${SMTP_FROM:-clienteservipro@gmail.com}"
       SMTP_HOST: "${SMTP_HOST}"
       SMTP_PORT: "${SMTP_PORT}"
-      SMTP_USER: "${SMTP_USER}"
+      SMTP_USER: "${SMTP_USER:-clienteservipro@gmail.com}"
       SMTP_PASS: "${SMTP_PASS}"
       SMTP_STARTTLS: "${SMTP_STARTTLS:-true}"
       UPLOAD_DIR: "${UPLOAD_DIR:-/home/ec2-user/uploads}"

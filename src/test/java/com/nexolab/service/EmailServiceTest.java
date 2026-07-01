@@ -16,9 +16,9 @@ class EmailServiceTest {
         EmailService.SmtpConfig config = service.loadFromEnv(Map.of(
                 "SMTP_HOST", "smtp.gmail.com",
                 "SMTP_PORT", "587",
-                "SMTP_USER", "user@gmail.com",
+            "SMTP_USER", "clienteservipro@gmail.com",
                 "SMTP_PASS", "1234 5678 9012 3456",
-                "SMTP_FROM", "user@gmail.com",
+            "SMTP_FROM", "clienteservipro@gmail.com",
                 "SMTP_STARTTLS", "true"
         ));
 
@@ -26,9 +26,24 @@ class EmailServiceTest {
         assertEquals("smtp.gmail.com", config.host);
         assertEquals(587, config.port);
         assertTrue(config.startTls);
-        assertEquals("user@gmail.com", config.username);
+        assertEquals("clienteservipro@gmail.com", config.username);
         assertEquals("1234567890123456", config.password);
-        assertEquals("user@gmail.com", config.from);
+        assertEquals("clienteservipro@gmail.com", config.from);
+    }
+
+    @Test
+    void loadFromEnvFallsBackBetweenUserAndFrom() {
+        EmailService service = new EmailService();
+        EmailService.SmtpConfig config = service.loadFromEnv(Map.of(
+                "SMTP_HOST", "smtp.gmail.com",
+                "SMTP_PORT", "587",
+                "SMTP_PASS", "1234 5678 9012 3456",
+                "SMTP_FROM", "clienteservipro@gmail.com"
+        ));
+
+        assertTrue(config != null);
+        assertEquals("clienteservipro@gmail.com", config.username);
+        assertEquals("clienteservipro@gmail.com", config.from);
     }
 
     @Test
@@ -38,9 +53,9 @@ class EmailServiceTest {
         assertNull(service.loadFromEnv(Map.of(
                 "SMTP_HOST", "",
                 "SMTP_PORT", "587",
-                "SMTP_USER", "user@gmail.com",
+            "SMTP_USER", "clienteservipro@gmail.com",
                 "SMTP_PASS", "1234567890123456",
-                "SMTP_FROM", "user@gmail.com"
+            "SMTP_FROM", "clienteservipro@gmail.com"
         )));
     }
 }

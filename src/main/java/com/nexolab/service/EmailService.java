@@ -45,6 +45,13 @@ public class EmailService {
         String from = normalizeEnv(envOrNull(env, "SMTP_FROM"));
         boolean startTls = Boolean.parseBoolean(envOrDefault(env, "SMTP_STARTTLS", "true"));
 
+        if (isBlank(username)) {
+            username = from;
+        }
+        if (isBlank(from)) {
+            from = username;
+        }
+
         // Gmail "app passwords" a veces se copian con espacios (XXXX XXXX XXXX XXXX).
         // Normalizamos para que funcione igual.
         if (password != null && password.indexOf(' ') >= 0) {
